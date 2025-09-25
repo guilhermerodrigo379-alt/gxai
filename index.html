@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GX VERSE - AI Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #000000; /* black */
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse 50% 50% at 80% 20%, rgba(192, 132, 252, 0.2), transparent),
+                    radial-gradient(ellipse 40% 40% at 20% 90%, rgba(232, 121, 249, 0.15), transparent);
+        filter: blur(120px);
+        z-index: 0;
+        pointer-events: none;
+        animation: subtle-glow 20s alternate infinite ease-in-out;
+      }
+      @keyframes subtle-glow {
+        from {
+          transform: scale(1) rotate(0deg);
+          opacity: 0.8;
+        }
+        to {
+          transform: scale(1.2) rotate(15deg);
+          opacity: 1;
+        }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+      }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-up {
+        animation: fadeInUp 0.5s ease-out forwards;
+      }
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      .animate-slide-in-right {
+        animation: slideInRight 0.5s ease-out forwards;
+      }
+      @keyframes subtle-pulse {
+        0%, 100% { 
+          transform: scale(1); 
+          box-shadow: 0 0 0 0 rgba(192, 132, 252, 0); 
+        }
+        50% { 
+          transform: scale(1.02); 
+          box-shadow: 0 0 10px 0 rgba(192, 132, 252, 0.4); 
+        }
+      }
+      .animate-subtle-pulse {
+        animation: subtle-pulse 2s infinite ease-in-out;
+      }
+      /* Style for the item being dragged */
+      .dragging-item {
+        opacity: 0.4;
+        transform: scale(1.08);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+      }
+      /* Style for the drop target placeholder */
+      .drop-target-active {
+        border-style: solid !important; /* Override dashed */
+        border-color: #c084fc !important; /* purple-400 */
+        background-color: rgba(192, 132, 252, 0.1);
+      }
+      #root {
+        position: relative;
+        z-index: 1;
+      }
+      /* Custom scrollbar for a more modern look */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1f293780; /* gray-800 with transparency */
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #c084fc; /* purple-400 */
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #d8b4fe; /* purple-300 */
+      }
+      /* Custom scrollbar for filmstrip */
+      .filmstrip-scrollbar::-webkit-scrollbar {
+        height: 6px;
+      }
+      .filmstrip-scrollbar::-webkit-scrollbar-track {
+        background: #1f293780; /* gray-800 with transparency */
+        border-radius: 3px;
+      }
+      .filmstrip-scrollbar::-webkit-scrollbar-thumb {
+        background: #c084fc; /* purple-400 */
+        border-radius: 3px;
+      }
+      .filmstrip-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #d8b4fe; /* purple-300 */
+      }
+      /* Custom styles for range inputs */
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+        width: 100%;
+      }
+      input[type="range"]:focus {
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        background: #374151; /* gray-700 */
+        height: 0.25rem;
+        border-radius: 0.5rem;
+      }
+      input[type="range"]::-moz-range-track {
+        background: #374151;
+        height: 0.25rem;
+        border-radius: 0.5rem;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        margin-top: -6px; /* Center thumb on track */
+        background-color: #c084fc; /* purple-400 */
+        height: 1rem;
+        width: 1rem;
+        border-radius: 50%;
+        transition: box-shadow 0.15s ease-in-out;
+      }
+      input[type="range"]:focus::-webkit-slider-thumb {
+        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #c084fc;
+      }
+       input[type="range"]::-moz-range-thumb {
+        background-color: #c084fc;
+        height: 1rem;
+        width: 1rem;
+        border-radius: 50%;
+        border: none;
+        transition: box-shadow 0.15s ease-in-out;
+      }
+      input[type="range"]:focus::-moz-range-thumb {
+        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #c084fc;
+      }
+      /* Checkerboard pattern for transparency */
+      .bg-checkerboard {
+        background-color: #1f2937; /* A fallback dark gray */
+        background-image:
+          linear-gradient(45deg, #374151 25%, transparent 25%),
+          linear-gradient(-45deg, #374151 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #374151 75%),
+          linear-gradient(-45deg, transparent 75%, #374151 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-router-dom/": "https://aistudiocdn.com/react-router-dom@^6.25.1/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^6.25.1"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
