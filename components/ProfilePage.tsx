@@ -22,7 +22,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser, history, 
         {/* Header */}
         <header className="flex items-center justify-between pb-6 border-b border-gray-700/50">
           <div className="flex items-center space-x-4">
-             <div className="w-16 h-16 bg-gradient-to-br from-fuchsia-400 to-purple-500 rounded-full flex items-center justify-center">
+             <div className="w-16 h-16 bg-gradient-to-br from-fuchsia-500 to-purple-600 rounded-full flex items-center justify-center">
                  <span className="text-3xl font-bold text-white">{currentUser.name.charAt(0).toUpperCase()}</span>
              </div>
              <div>
@@ -43,11 +43,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser, history, 
         <section className="my-8 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gray-900/70 p-6 rounded-xl border border-gray-800/50">
                 <h3 className="text-gray-400 text-sm font-medium">Total de Criações</h3>
-                <p className="text-4xl font-bold text-purple-400 mt-2">{history.length}</p>
+                <p className="text-4xl font-bold text-fuchsia-400 mt-2">{history.length}</p>
             </div>
              <div className="bg-gray-900/70 p-6 rounded-xl border border-gray-800/50">
                 <h3 className="text-gray-400 text-sm font-medium">Membro Desde</h3>
-                <p className="text-4xl font-bold text-purple-400 mt-2">{registrationYear}</p>
+                <p className="text-4xl font-bold text-fuchsia-400 mt-2">{registrationYear}</p>
             </div>
              <div className="bg-gray-900/70 p-6 rounded-xl border border-gray-800/50 flex flex-col justify-center items-center">
                  <button 

@@ -1,10 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse, Modality } from "@google/genai";
 import { ImageFile } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const enhancePromptWithGemini = async (prompt: string, referenceImage?: ImageFile): Promise<string> => {
@@ -85,6 +81,8 @@ const getStylePrompt = (prompt: string, createFunction: string): string => {
       return `Breathtaking fantasy landscape concept art of ${prompt}. A beautiful scenic digital painting, epic scale, highly detailed environment, atmospheric lighting.`;
     case 'portrait':
       return `Professional studio portrait photograph of ${prompt}, hyper-realistic, sharp focus, detailed skin texture, expressive, neutral background, dramatic lighting.`;
+    case 'anime':
+      return `Vibrant and dynamic anime style art of ${prompt}. Clean, defined line art, bright and saturated color palette, cinematic composition, trending on ArtStation and Pixiv, high quality illustration.`;
     default: // free
       return `A highly detailed, photorealistic image of: ${prompt}.`;
   }
@@ -175,9 +173,6 @@ ${negativePrompt && negativePrompt.trim() ? `\n**Restrições (Prompt Negativo):
       },
     });
 
-    // FIX: The `GenerateImagesResponse` type does not have a `promptFeedback` property.
-    // A blocked request will result in an empty `generatedImages` array,
-    // which is handled by the logic below.
     if (response.generatedImages && response.generatedImages.length > 0) {
       const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
       return `data:image/jpeg;base64,${base64ImageBytes}`;
@@ -189,122 +184,137 @@ ${negativePrompt && negativePrompt.trim() ? `\n**Restrições (Prompt Negativo):
 
 export const generateVideoWithGemini = async (
   prompt: string,
-  onProgress: (progress: number, message: string) => void,
+  onProgress: (progress: number, message: string, etr?: string) => void,
   referenceImage?: ImageFile,
   motionLevel: 'subtle' | 'moderate' | 'dynamic' = 'moderate'
 ): Promise<string> => {
-  onProgress(1, "Enviando solicitação de vídeo...");
+  const MAX_RETRIES = 3;
+  let attempt = 0;
 
-  let finalPrompt: string;
+  while (attempt < MAX_RETRIES) {
+    try {
+      onProgress(1, "Enviando solicitação de vídeo...");
 
-  if (referenceImage) {
-    switch(motionLevel) {
-      case 'subtle':
-        finalPrompt = `**Instrução Absoluta: Animação Sutil e Fiel.** Sua única missão é animar sutilmente a imagem de referência, como um 'cinemagraph'. O resultado deve parecer a imagem estática ganhando vida com movimentos mínimos e naturais (ex: cabelo ao vento, vapor subindo, piscar de olhos). **NÃO introduza movimentos de câmera.** Preserve 100% do estilo, composição, cores e iluminação. O prompt do usuário define apenas a *natureza* do movimento sutil. Prompt do Usuário: "${prompt}"`;
-        break;
-      case 'moderate':
-        finalPrompt = `**Instrução: Animação Cinematográfica Moderada.** Sua missão é criar um vídeo que se baseia na imagem de referência. Anime a cena com movimentos naturais. Preserve o estilo artístico, os personagens e o ambiente da imagem, mas introduza um movimento de câmera suave (como um leve travelling, pan ou tilt) para dar mais vida à cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
-        break;
-      case 'dynamic':
-        finalPrompt = `**Instrução: Vídeo Dinâmico Baseado em Referência.** Use a imagem de referência como ponto de partida. Crie um vídeo dinâmico e cinematográfico. O estilo e os elementos principais devem ser inspirados na imagem, mas você tem liberdade para introduzir movimentos de câmera significativos (zoom, travelling rápido, câmera na mão), animações energéticas e até expandir a cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
-        break;
+      let finalPrompt: string;
+      if (referenceImage) {
+        switch (motionLevel) {
+          case 'subtle':
+            finalPrompt = `**Instrução Absoluta: Animação Sutil e Fiel.** Sua única missão é animar sutilmente a imagem de referência, como um 'cinemagraph'. O resultado deve parecer a imagem estática ganhando vida com movimentos mínimos e naturais (ex: cabelo ao vento, vapor subindo, piscar de olhos). **NÃO introduza movimentos de câmera.** Preserve 100% do estilo, composição, cores e iluminação. O prompt do usuário define apenas a *natureza* do movimento sutil. Prompt do Usuário: "${prompt}"`;
+            break;
+          case 'moderate':
+            finalPrompt = `**Instrução: Animação Cinematográfica Moderada.** Sua missão é criar um vídeo que se baseia na imagem de referência. Anime a cena com movimentos naturais. Preserve o estilo artístico, os personagens e o ambiente da imagem, mas introduza um movimento de câmera suave (como um leve travelling, pan ou tilt) para dar mais vida à cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
+            break;
+          case 'dynamic':
+            finalPrompt = `**Instrução: Vídeo Dinâmico Baseado em Referência.** Use a imagem de referência como ponto de partida. Crie um vídeo dinâmico e cinematográfico. O estilo e os elementos principais devem ser inspirados na imagem, mas você tem liberdade para introduzir movimentos de câmera significativos (zoom, travelling rápido, câmera na mão), animações energéticas e até expandir a cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
+            break;
+        }
+      } else {
+        switch (motionLevel) {
+          case 'subtle':
+            finalPrompt = `**Estilo: Cinemagraph/Sutil.** Gere um vídeo de altíssima qualidade focado em movimentos mínimos, delicados e atmosféricos. Ideal para retratos em movimento ou paisagens tranquilas. A composição deve ser majoritariamente estática, com movimentos de câmera quase imperceptíveis, se houver. Renderize em 4K, com iluminação natural. Prompt do Usuário: "${prompt}"`;
+            break;
+          case 'moderate':
+            finalPrompt = `**Estilo: Cinematográfico Padrão.** Gere um vídeo de alta qualidade com movimentos de câmera padrão (pan, tilt, travelling suave) e ação moderada. Foque em movimento suave, texturas realistas e iluminação dramática. Qualidade de produção, 4K. Prompt do Usuário: "${prompt}"`;
+            break;
+          case 'dynamic':
+            finalPrompt = `**Estilo: Ação/Dinâmico.** Gere uma cena cinematográfica de alta energia. Use movimentos de câmera dinâmicos (câmera na mão, travelling rápido, cortes, ângulos dramáticos) para criar um ritmo rápido. A iluminação deve ser intensa e o movimento, enérgico. Qualidade de filme de ação, 4K. Prompt do Usuário: "${prompt}"`;
+            break;
+        }
+      }
+
+      const requestPayload: any = {
+        model: 'veo-2.0-generate-001',
+        prompt: finalPrompt,
+        config: {
+          numberOfVideos: 1,
+        },
+      };
+
+      if (referenceImage) {
+        requestPayload.image = {
+          imageBytes: referenceImage.base64,
+          mimeType: referenceImage.mimeType,
+        };
+      }
+
+      let operation = await ai.models.generateVideos(requestPayload);
+      onProgress(5, "Operação de vídeo iniciada. Aguardando progresso...");
+
+      const startTime = Date.now();
+      const timeoutMinutes = 10;
+      const timeoutMillis = timeoutMinutes * 60 * 1000;
+      let lastProgressPercent = 0;
+
+      while (!operation.done) {
+        if (Date.now() - startTime > timeoutMillis) {
+          throw new Error(`A geração de vídeo excedeu o tempo limite de ${timeoutMinutes} minutos.`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // Poll every 5 seconds
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+
+        const progressPercent = (operation.metadata as any)?.progressPercent;
+        if (typeof progressPercent === 'number' && progressPercent > lastProgressPercent) {
+          lastProgressPercent = progressPercent;
+          const displayProgress = 5 + Math.floor(progressPercent * 0.9);
+          const elapsedMillis = Date.now() - startTime;
+          let etrString: string | undefined = undefined;
+
+          if (progressPercent > 1) { // Avoid inaccurate early estimates
+            const totalEstimatedMillis = (elapsedMillis / progressPercent) * 100;
+            const remainingMillis = totalEstimatedMillis - elapsedMillis;
+            if (remainingMillis > 0) {
+              const remainingSeconds = Math.round(remainingMillis / 1000);
+              const minutes = Math.floor(remainingSeconds / 60);
+              const seconds = remainingSeconds % 60;
+              etrString = `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+            }
+          }
+          onProgress(displayProgress, "Renderizando seu vídeo...", etrString);
+        }
+      }
+
+      if (operation.error) {
+        throw new Error(`A geração de vídeo falhou na API: ${operation.error.message}`);
+      }
+
+      onProgress(95, "Quase pronto! Finalizando o vídeo...");
+      const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+
+      if (!downloadLink) {
+        throw new Error('A geração de vídeo falhou, nenhum link de download foi retornado.');
+      }
+
+      onProgress(97, "Baixando vídeo...");
+      const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Falha ao baixar o vídeo. Status ${response.status}: ${errorText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.startsWith('video/')) {
+          throw new Error('Falha ao baixar o vídeo: a resposta não foi um arquivo de vídeo válido.');
+      }
+
+      const videoBlob = await response.blob();
+      return URL.createObjectURL(videoBlob); // Success, exit retry loop
+
+    } catch (error) {
+      attempt++;
+      console.error(`Attempt ${attempt} failed:`, error);
+      if (attempt >= MAX_RETRIES) {
+        throw error; // All retries failed
+      }
+      const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s
+      onProgress(0, `Falha na tentativa ${attempt}. Tentando novamente em ${delay / 1000}s...`, undefined);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-  } else {
-    switch(motionLevel) {
-      case 'subtle':
-        finalPrompt = `**Estilo: Cinemagraph/Sutil.** Gere um vídeo de altíssima qualidade focado em movimentos mínimos, delicados e atmosféricos. Ideal para retratos em movimento ou paisagens tranquilas. A composição deve ser majoritariamente estática, com movimentos de câmera quase imperceptíveis, se houver. Renderize em 4K, com iluminação natural. Prompt do Usuário: "${prompt}"`;
-        break;
-      case 'moderate':
-        finalPrompt = `**Estilo: Cinematográfico Padrão.** Gere um vídeo de alta qualidade com movimentos de câmera padrão (pan, tilt, travelling suave) e ação moderada. Foque em movimento suave, texturas realistas e iluminação dramática. Qualidade de produção, 4K. Prompt do Usuário: "${prompt}"`;
-        break;
-      case 'dynamic':
-        finalPrompt = `**Estilo: Ação/Dinâmico.** Gere uma cena cinematográfica de alta energia. Use movimentos de câmera dinâmicos (câmera na mão, travelling rápido, cortes, ângulos dramáticos) para criar um ritmo rápido. A iluminação deve ser intensa e o movimento, enérgico. Qualidade de filme de ação, 4K. Prompt do Usuário: "${prompt}"`;
-        break;
-    }
   }
-
-
-  const requestPayload: any = {
-    model: 'veo-2.0-generate-001',
-    prompt: finalPrompt,
-    config: {
-      numberOfVideos: 1,
-    },
-  };
-
-  if (referenceImage) {
-    requestPayload.image = {
-      imageBytes: referenceImage.base64,
-      mimeType: referenceImage.mimeType,
-    };
-  }
-
-  let operation = await ai.models.generateVideos(requestPayload);
-
-  onProgress(5, "Operação de vídeo iniciada. Aguardando progresso...");
-  
-  const startTime = Date.now();
-  const timeoutMinutes = 10;
-  const timeoutMillis = timeoutMinutes * 60 * 1000;
-
-  while (!operation.done) {
-    if (Date.now() - startTime > timeoutMillis) {
-      throw new Error(`A geração de vídeo excedeu o tempo limite de ${timeoutMinutes} minutos.`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    operation = await ai.operations.getVideosOperation({ operation: operation });
-
-    const progressPercent = (operation.metadata as any)?.progressPercent;
-    
-    if (typeof progressPercent === 'number') {
-        const displayProgress = 5 + Math.floor(progressPercent * 0.9);
-        onProgress(displayProgress, "Renderizando seu vídeo...");
-    }
-  }
-
-  if (operation.error) {
-    throw new Error(`A geração de vídeo falhou: ${operation.error.message}`);
-  }
-
-  onProgress(95, "Quase pronto! Finalizando o vídeo...");
-
-  const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-
-  if (!downloadLink) {
-    throw new Error('A geração de vídeo falhou, nenhum link de download foi retornado.');
-  }
-
-  onProgress(97, "Baixando vídeo...");
-
-  if (!process.env.API_KEY) {
-    throw new Error("A chave de API não está configurada para baixar o vídeo.");
-  }
-  
-  // Using a header for the API key is a more standard and robust method for authorization.
-  const response = await fetch(downloadLink, {
-    headers: {
-        'x-goog-api-key': process.env.API_KEY,
-    }
-  });
-
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(`Falha ao baixar o vídeo. Ocorreu um problema de autorização ao tentar baixar o vídeo.`);
-    }
-    const errorText = await response.text();
-    throw new Error(`Falha ao baixar o vídeo. O servidor respondeu com status ${response.status}: ${errorText}`);
-  }
-
-  const contentType = response.headers.get('content-type');
-  if (!contentType || !contentType.startsWith('video/')) {
-      throw new Error('Falha ao baixar o vídeo: a resposta do servidor não foi um arquivo de vídeo válido.');
-  }
-
-  const videoBlob = await response.blob();
-  const blobUrl = URL.createObjectURL(videoBlob);
-  return blobUrl;
+  throw new Error("A geração de vídeo falhou após múltiplas tentativas.");
 };
+
 
 export const generatePromptFromImage = async (image: ImageFile): Promise<string> => {
   try {

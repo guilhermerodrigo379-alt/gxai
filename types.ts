@@ -11,6 +11,7 @@ export enum CreateFunction {
   Scenario = 'scenario',
   Portrait = 'portrait',
   Video = 'video',
+  Anime = 'anime',
 }
 
 export enum EditFunction {
@@ -46,13 +47,11 @@ export interface HistoryItem {
   negativePrompt?: string;
 }
 
-// FIX: Added UserSettings interface to be shared across components.
 export interface UserSettings {
   activeCreateFunc: CreateFunction;
   aspectRatio: string;
 }
 
-// FIX: Added missing User interface for ProfilePage.
 export interface User {
   name: string;
   password?: string; // Should be hashed in a real app

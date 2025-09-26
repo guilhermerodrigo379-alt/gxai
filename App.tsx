@@ -9,30 +9,35 @@ import { Icon } from './components/Icon';
 const useToasts = () => {
     const [toasts, setToasts] = useState<{id: number, message: string, type: 'success' | 'error'}[]>([]);
     
+    const removeToast = (id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
     const addToast = (message: string, type: 'success' | 'error' = 'error') => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
+        const timer = setTimeout(() => {
+            removeToast(id);
         }, 5000);
+        return () => clearTimeout(timer);
     };
 
     const setToastError = (message: string) => addToast(message, 'error');
     const setToastSuccess = (message: string) => addToast(message, 'success');
 
-    return { toasts, setToastError, setToastSuccess };
+    return { toasts, setToastError, setToastSuccess, removeToast };
 };
 
-const Toast: React.FC<{ message: string; type: string; onDismiss: () => void }> = ({ message, type, onDismiss }) => {
+const Toast: React.FC<{ id: number; message: string; type: string; onDismiss: (id: number) => void }> = ({ id, message, type, onDismiss }) => {
     const isError = type === 'error';
-    const bgColor = isError ? 'bg-red-500/90' : 'bg-purple-500/90';
+    const bgColor = isError ? 'bg-red-500/90' : 'bg-fuchsia-500/90';
     const iconName = isError ? 'x-circle' : 'check-circle';
 
     return (
         <div className={`flex items-center w-full max-w-sm p-4 space-x-3 text-white ${bgColor} rounded-lg shadow-lg backdrop-blur-sm animate-slide-in-right`}>
             <Icon name={iconName} className="w-6 h-6 flex-shrink-0" />
             <span className="flex-grow text-sm font-medium">{message}</span>
-            <button onClick={onDismiss} className="p-1 -ml-2 rounded-full hover:bg-white/20 flex-shrink-0">
+            <button onClick={() => onDismiss(id)} className="p-1 -ml-2 rounded-full hover:bg-white/20 flex-shrink-0">
               <Icon name="close" className="w-5 h-5" />
             </button>
         </div>
@@ -44,7 +49,7 @@ const App: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [history, setHistory] = useState<HistoryItem[]>([]);
-    const { toasts, setToastError, setToastSuccess } = useToasts();
+    const { toasts, setToastError, setToastSuccess, removeToast } = useToasts();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -166,7 +171,7 @@ const App: React.FC = () => {
         <>
             <div className="fixed top-0 left-0 right-0 z-[100] p-4 flex justify-center md:justify-end pointer-events-none">
                 <div className="flex flex-col items-end space-y-2 w-full max-w-sm">
-                    {toasts.map(toast => <Toast key={toast.id} message={toast.message} type={toast.type} onDismiss={() => {}} />)}
+                    {toasts.map(toast => <Toast key={toast.id} id={toast.id} message={toast.message} type={toast.type} onDismiss={removeToast} />)}
                 </div>
             </div>
         

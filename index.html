@@ -22,12 +22,90 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: radial-gradient(ellipse 50% 50% at 80% 20%, rgba(192, 132, 252, 0.2), transparent),
-                    radial-gradient(ellipse 40% 40% at 20% 90%, rgba(232, 121, 249, 0.15), transparent);
+        background: radial-gradient(ellipse 50% 50% at 80% 20%, rgba(168, 85, 247, 0.2), transparent),
+                    radial-gradient(ellipse 40% 40% at 20% 90%, rgba(236, 72, 153, 0.15), transparent);
         filter: blur(120px);
         z-index: 0;
         pointer-events: none;
         animation: subtle-glow 20s alternate infinite ease-in-out;
+      }
+      
+      #stars1, #stars2, #stars3 {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 200%;
+        height: 200%;
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      /* Camada 1: Poeira e estrelas distantes (movimento lento) */
+      #stars1 {
+        background-image: 
+          radial-gradient(circle, rgba(200, 220, 255, 0.7) 0.7px, transparent 0.7px),
+          radial-gradient(circle, rgba(200, 220, 255, 0.5) 0.4px, transparent 0.4px),
+          radial-gradient(circle, rgba(192, 132, 252, 0.3) 0.5px, transparent 0.5px);
+        background-size: 
+          70px 70px,
+          35px 35px,
+          25px 25px;
+        background-position: 
+          20px 20px,
+          10px 10px,
+          5px 5px;
+        animation: move-stars-slow 200s linear infinite, twinkle-stars 12s alternate infinite ease-in-out;
+      }
+
+      /* Camada 2: Estrelas de média distância (movimento médio) */
+      #stars2 {
+        background-image:
+          radial-gradient(circle, rgba(255, 255, 255, 0.8) 1px, transparent 1px);
+        background-size:
+          150px 150px;
+        background-position:
+          40px 40px;
+        animation: move-stars-medium 150s linear infinite, twinkle-stars 8s alternate infinite ease-in-out;
+      }
+
+      /* Camada 3: Estrelas próximas e brilhantes (movimento rápido) */
+      #stars3 {
+        background-image:
+          radial-gradient(circle, #FFFFFF 1.5px, transparent 1.5px),
+          radial-gradient(circle, #FFFFFF 2px, transparent 2px);
+        background-size:
+          250px 250px,
+          500px 500px;
+        background-position:
+          0 0,
+          100px 100px;
+        animation: move-stars-fast 100s linear infinite, twinkle-stars 6s alternate infinite ease-in-out;
+      }
+
+      @keyframes move-stars-slow {
+        from { transform: translate(0, 0); }
+        to { transform: translate(-25%, -25%); }
+      }
+      @keyframes move-stars-medium {
+        from { transform: translate(0, 0); }
+        to { transform: translate(-50%, -50%); }
+      }
+       @keyframes move-stars-fast {
+        from { transform: translate(0, 0); }
+        to { transform: translate(-75%, -75%); }
+      }
+
+      /* Novo keyframe para o efeito de cintilação */
+      @keyframes twinkle-stars {
+        0% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 0.9;
+        }
+        100% {
+          opacity: 0.5;
+        }
       }
       @keyframes subtle-glow {
         from {
@@ -69,62 +147,62 @@
       @keyframes subtle-pulse {
         0%, 100% { 
           transform: scale(1); 
-          box-shadow: 0 0 0 0 rgba(192, 132, 252, 0); 
+          box-shadow: 0 0 0 0 rgba(217, 70, 239, 0); 
         }
         50% { 
           transform: scale(1.02); 
-          box-shadow: 0 0 10px 0 rgba(192, 132, 252, 0.4); 
+          box-shadow: 0 0 10px 0 rgba(217, 70, 239, 0.4); 
         }
       }
       .animate-subtle-pulse {
         animation: subtle-pulse 2s infinite ease-in-out;
       }
-      /* Style for the item being dragged */
+      /* Estilo para o item sendo arrastado */
       .dragging-item {
         opacity: 0.4;
         transform: scale(1.08);
         box-shadow: 0 15px 30px rgba(0,0,0,0.3);
       }
-      /* Style for the drop target placeholder */
+      /* Estilo para o espaço reservado do alvo de soltar */
       .drop-target-active {
-        border-style: solid !important; /* Override dashed */
-        border-color: #c084fc !important; /* purple-400 */
-        background-color: rgba(192, 132, 252, 0.1);
+        border-style: solid !important; /* Sobrescrever tracejado */
+        border-color: #d946ef !important; /* fuchsia-500 */
+        background-color: rgba(217, 70, 239, 0.1);
       }
       #root {
         position: relative;
         z-index: 1;
       }
-      /* Custom scrollbar for a more modern look */
+      /* Barra de rolagem personalizada para um visual mais moderno */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1f293780; /* gray-800 with transparency */
+        background: #1f293780; /* gray-800 com transparência */
       }
       ::-webkit-scrollbar-thumb {
-        background: #c084fc; /* purple-400 */
+        background: #d946ef; /* fuchsia-500 */
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #d8b4fe; /* purple-300 */
+        background: #f472b6; /* pink-400 */
       }
-      /* Custom scrollbar for filmstrip */
+      /* Barra de rolagem personalizada para a tira de filme */
       .filmstrip-scrollbar::-webkit-scrollbar {
         height: 6px;
       }
       .filmstrip-scrollbar::-webkit-scrollbar-track {
-        background: #1f293780; /* gray-800 with transparency */
+        background: #1f293780; /* gray-800 com transparência */
         border-radius: 3px;
       }
       .filmstrip-scrollbar::-webkit-scrollbar-thumb {
-        background: #c084fc; /* purple-400 */
+        background: #d946ef; /* fuchsia-500 */
         border-radius: 3px;
       }
       .filmstrip-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #d8b4fe; /* purple-300 */
+        background: #f472b6; /* pink-400 */
       }
-      /* Custom styles for range inputs */
+      /* Estilos personalizados para entradas de intervalo */
       input[type="range"] {
         -webkit-appearance: none;
         appearance: none;
@@ -148,18 +226,18 @@
       input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
-        margin-top: -6px; /* Center thumb on track */
-        background-color: #c084fc; /* purple-400 */
+        margin-top: -6px; /* Centralizar o polegar na trilha */
+        background-color: #d946ef; /* fuchsia-500 */
         height: 1rem;
         width: 1rem;
         border-radius: 50%;
         transition: box-shadow 0.15s ease-in-out;
       }
       input[type="range"]:focus::-webkit-slider-thumb {
-        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #c084fc;
+        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #d946ef;
       }
        input[type="range"]::-moz-range-thumb {
-        background-color: #c084fc;
+        background-color: #d946ef;
         height: 1rem;
         width: 1rem;
         border-radius: 50%;
@@ -167,11 +245,11 @@
         transition: box-shadow 0.15s ease-in-out;
       }
       input[type="range"]:focus::-moz-range-thumb {
-        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #c084fc;
+        box-shadow: 0 0 0 4px #111827, 0 0 0 6px #d946ef;
       }
-      /* Checkerboard pattern for transparency */
+      /* Padrão de tabuleiro de xadrez para transparência */
       .bg-checkerboard {
-        background-color: #1f2937; /* A fallback dark gray */
+        background-color: #1f2937; /* Um cinza escuro de fallback */
         background-image:
           linear-gradient(45deg, #374151 25%, transparent 25%),
           linear-gradient(-45deg, #374151 25%, transparent 25%),
@@ -179,6 +257,31 @@
           linear-gradient(-45deg, transparent 75%, #374151 75%);
         background-size: 20px 20px;
         background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      }
+      
+      /* Keyframes para a animação de voo */
+      @keyframes fly-to-target {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+          border-radius: 0.75rem; /* 12px */
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          top: var(--target-top);
+          left: var(--target-left);
+          width: var(--target-width);
+          height: var(--target-height);
+          transform: scale(0);
+          opacity: 0;
+          border-radius: 50%;
+        }
+      }
+
+      .animate-fly-to-target {
+          animation: fly-to-target 0.6s cubic-bezier(0.5, 0, 1, 0.5) forwards;
       }
     </style>
   <script type="importmap">
@@ -195,6 +298,9 @@
 </script>
 </head>
   <body>
+    <div id="stars1"></div>
+    <div id="stars2"></div>
+    <div id="stars3"></div>
     <div id="root"></div>
   </body>
 </html>

@@ -50,7 +50,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => 
 
   return (
     <div className="min-h-screen text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-gray-900/60 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-8 shadow-2xl shadow-purple-500/10 animate-fade-in-up">
+      <div className="w-full max-w-md bg-gray-900/60 backdrop-blur-xl border border-gray-800/50 rounded-2xl p-8 shadow-2xl shadow-fuchsia-500/10 animate-fade-in-up">
         <header className="text-center mb-8">
           <h1 className="font-extrabold text-4xl tracking-tight bg-gradient-to-br from-fuchsia-400 to-purple-500 bg-clip-text text-transparent">
             GX VERSE
@@ -72,7 +72,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => 
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors"
               placeholder="Digite seu nome de usuário"
               autoFocus
             />
@@ -87,7 +87,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => 
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors"
               placeholder="Digite sua senha"
             />
           </div>
@@ -105,7 +105,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onRegister }) => 
 
         <p className="text-center text-sm text-gray-400 mt-6">
           {mode === 'login' ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-          <button onClick={toggleMode} className="font-semibold text-purple-400 hover:text-purple-300 ml-2 focus:outline-none">
+          <button onClick={toggleMode} className="font-semibold text-fuchsia-400 hover:text-fuchsia-300 ml-2 focus:outline-none">
             {mode === 'login' ? 'Crie uma agora' : 'Faça login'}
           </button>
         </p>

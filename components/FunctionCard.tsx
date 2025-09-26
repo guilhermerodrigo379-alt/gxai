@@ -12,8 +12,8 @@ interface FunctionCardProps {
 export const FunctionCard: React.FC<FunctionCardProps> = ({ icon, name, sublabel, isActive, onClick }) => {
   const baseClasses = "flex flex-col items-center justify-center p-2 border rounded-lg cursor-pointer transition-all duration-200 aspect-square transform active:scale-95";
   // Added animate-subtle-pulse and removed static shadow/ring for a more dynamic effect
-  const activeClasses = "bg-gray-800/60 border-purple-500/80 text-purple-400 animate-subtle-pulse";
-  const inactiveClasses = "bg-gray-900/60 border-gray-700/50 text-gray-300 hover:bg-gray-800/60 hover:border-gray-600 hover:text-gray-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/10";
+  const activeClasses = "bg-gray-800/60 border-fuchsia-500/80 text-fuchsia-400 animate-subtle-pulse";
+  const inactiveClasses = "bg-gray-900/60 border-gray-700/50 text-gray-300 hover:bg-gray-800/60 hover:border-gray-600 hover:text-gray-100 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-fuchsia-500/10";
   
   return (
     <div

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mode, CreateFunction, EditFunction, EnhanceFunction, ImageFile, HistoryItem, UserSettings, User } from '../types';
 import { generateImageWithGemini, editImageWithGemini, upscaleImageWithGemini, generateVariationsWithGemini, enhancePromptWithGemini, generateVideoWithGemini, enhanceImageWithGemini, generatePromptFromImage } from '../services/geminiService';
@@ -10,6 +10,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ProgressBar } from './ProgressBar';
 import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { WelcomeModal } from './WelcomeModal';
+import { Tooltip } from './Tooltip';
 
 interface StudioPageProps {
     currentUser: User;
@@ -20,6 +21,25 @@ interface StudioPageProps {
     setToastError: (message: string) => void;
     setToastSuccess: (message: string) => void;
 }
+
+const inspirations = [
+    {
+        prompt: 'Uma nave espacial angular atravessando um campo de asteroides perto de um planeta com anéis, arte vetorial.',
+        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2E4NTVmNyIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMzYjA3NjQiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZhtPSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
+    },
+    {
+        prompt: 'Uma nebulosa cósmica em tons de rosa e roxo profundo, repleta de estrelas cintilantes.',
+        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0NzJiNiIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM2YjIxYTgiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
+    },
+    {
+        prompt: 'Um astronauta em pé na beira de um precipício, observando um buraco negro.',
+        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Q4YjRmZSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM0YTA0NGUiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
+    },
+    {
+        prompt: 'Uma cidade alienígena com torres de cristal que brilham com luz roxa, sob um céu com duas luas.',
+        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2MwODRmYyIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM1ODFjODciIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
+    },
+];
 
 // --- START of Helper Components ---
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => (
@@ -205,11 +225,11 @@ const FocusView: React.FC<{
                     <div className="flex-grow overflow-y-auto py-4 space-y-6">
                         <div className="space-y-2">
                              <button onClick={onSendToEdit} title="Enviar para Edição" className="w-full flex items-center space-x-3 p-3 rounded-lg bg-gray-800/80 hover:bg-gray-700/80 transition-colors text-left font-medium">
-                                <Icon name="magic" className="w-6 h-6 text-purple-400"/>
+                                <Icon name="magic" className="w-6 h-6 text-fuchsia-400"/>
                                 <span>Enviar para Edição</span>
                              </button>
                               <button onClick={onSendToEnhance} title="Enviar para Melhoria" className="w-full flex items-center space-x-3 p-3 rounded-lg bg-gray-800/80 hover:bg-gray-700/80 transition-colors text-left font-medium">
-                                <Icon name="sparkles" className="w-6 h-6 text-purple-400"/>
+                                <Icon name="sparkles" className="w-6 h-6 text-fuchsia-400"/>
                                 <span>Enviar para Melhoria</span>
                              </button>
                         </div>
@@ -219,14 +239,14 @@ const FocusView: React.FC<{
                                 <h3 className="text-base font-semibold text-gray-200">Gerar Variações</h3>
                                 <div className="space-y-2">
                                     <button onClick={() => onGenerateVariations('subtle')} title="Pequenas alterações mantendo o estilo e composição originais." className="w-full flex items-start space-x-3 p-3 rounded-lg bg-gray-800/80 hover:bg-gray-700/80 transition-colors text-left font-medium">
-                                        <Icon name="variations" className="w-6 h-6 text-purple-400 mt-1 flex-shrink-0"/>
+                                        <Icon name="variations" className="w-6 h-6 text-fuchsia-400 mt-1 flex-shrink-0"/>
                                         <div>
                                             <span className="font-bold">Variações Sutis</span>
                                             <p className="text-xs text-gray-400">Pequenas alterações mantendo o estilo e composição originais.</p>
                                         </div>
                                     </button>
                                     <button onClick={() => onGenerateVariations('creative')} title="Gera um novo prompt a partir desta imagem para criar resultados mais diversos." className="w-full flex items-start space-x-3 p-3 rounded-lg bg-gray-800/80 hover:bg-gray-700/80 transition-colors text-left font-medium">
-                                        <Icon name="sparkles" className="w-6 h-6 text-purple-400 mt-1 flex-shrink-0"/>
+                                        <Icon name="sparkles" className="w-6 h-6 text-fuchsia-400 mt-1 flex-shrink-0"/>
                                         <div>
                                             <span className="font-bold">Variações Criativas</span>
                                             <p className="text-xs text-gray-400">Gera um novo prompt a partir desta imagem para criar resultados diversos.</p>
@@ -239,7 +259,7 @@ const FocusView: React.FC<{
                         <div className="space-y-4">
                             <h3 className="text-base font-semibold text-gray-200">Ampliar Qualidade</h3>
                             <div className="grid grid-cols-3 gap-2">
-                               { [2,4,'4K'].map(val => <button key={val} onClick={() => setUpscaleValue(val as any)} className={`p-2 text-sm font-semibold rounded-md transition-colors ${upscaleValue === val ? 'bg-purple-500 text-white' : 'bg-gray-800 hover:bg-gray-700'}`}>{val}{typeof val === 'number' ? 'x' : ''}</button>)}
+                               { [2,4,'4K'].map(val => <button key={val} onClick={() => setUpscaleValue(val as any)} className={`p-2 text-sm font-semibold rounded-md transition-colors ${upscaleValue === val ? 'bg-fuchsia-500 text-white' : 'bg-gray-800 hover:bg-gray-700'}`}>{val}{typeof val === 'number' ? 'x' : ''}</button>)}
                             </div>
                             <button 
                                 onClick={() => onUpscale(upscaleValue)} 
@@ -269,8 +289,8 @@ const FocusView: React.FC<{
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Exportação Padrão</label>
                                 <div className="flex space-x-2">
-                                    <button onClick={() => setExportFormat('jpeg')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${exportFormat === 'jpeg' ? 'bg-purple-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>JPEG</button>
-                                    <button onClick={() => setExportFormat('png')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${exportFormat === 'png' ? 'bg-purple-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>PNG</button>
+                                    <button onClick={() => setExportFormat('jpeg')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${exportFormat === 'jpeg' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>JPEG</button>
+                                    <button onClick={() => setExportFormat('png')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${exportFormat === 'png' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>PNG</button>
                                 </div>
                             </div>
                             {exportFormat === 'jpeg' && (
@@ -298,7 +318,7 @@ const FocusView: React.FC<{
 
 const DropOverlay: React.FC = () => (
     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center pointer-events-none animate-fade-in">
-        <Icon name="upload" className="w-24 h-24 text-purple-400/80 mb-4" />
+        <Icon name="upload" className="w-24 h-24 text-fuchsia-400/80 mb-4" />
         <p className="text-2xl font-bold text-white">Solte a imagem para começar</p>
         <p className="text-gray-300">Sua imagem será adicionada ao painel esquerdo</p>
     </div>
@@ -313,6 +333,7 @@ const createFunctions = [
   { id: CreateFunction.Cinema, name: "Cinema", icon: "cinema" },
   { id: CreateFunction.Scenario, name: "Cenário", icon: "scenario" },
   { id: CreateFunction.Portrait, name: "Retrato", icon: "portrait" },
+  { id: CreateFunction.Anime, name: "Anime", icon: "anime" },
 ];
 
 const editFunctions = [
@@ -329,6 +350,92 @@ const enhanceFunctions = [
   { id: EnhanceFunction.AdjustColor, name: "Ajustar Cor", icon: "style" },
   { id: EnhanceFunction.AdjustLighting, name: "Ajustar Luz", icon: "cinema" },
 ];
+
+const createTooltips = {
+  [CreateFunction.Free]: {
+    title: 'Prompt Livre',
+    description: 'Criação de imagem totalmente livre a partir do seu prompt, sem aplicação de estilos pré-definidos.',
+    example: 'Um robô vintage lendo um livro em uma biblioteca poeirenta.'
+  },
+  [CreateFunction.Video]: {
+    title: 'Gerador de Vídeo (Beta)',
+    description: 'Anima sua ideia ou uma imagem de referência em um clipe de vídeo curto. Especifique a ação no prompt.',
+    example: 'Um dragão sobrevoando um castelo medieval.'
+  },
+  [CreateFunction.Seedream4k]: {
+    title: '4K Style',
+    description: 'Gera imagens com um estilo hiper-realista, com detalhes extremos e uma estética de alta definição 4K.',
+    example: 'O rosto de um velho marinheiro, com rugas e barba altamente detalhadas.'
+  },
+  [CreateFunction.Cinema]: {
+    title: 'Cinema',
+    description: 'Cria cenas com iluminação dramática, profundidade de campo e uma aparência cinematográfica.',
+    example: 'Um detetive em uma rua chuvosa à noite, iluminado por um letreiro de neon.'
+  },
+  [CreateFunction.Scenario]: {
+    title: 'Cenário',
+    description: 'Ideal para criar paisagens e ambientes vastos, detalhados e com uma iluminação atmosférica.',
+    example: 'Uma cidade futurista flutuando nas nuvens ao pôr do sol.'
+  },
+  [CreateFunction.Portrait]: {
+    title: 'Retrato',
+    description: 'Produz retratos com qualidade de estúdio, foco nítido, textura de pele detalhada e iluminação profissional.',
+    example: 'Retrato de uma mulher com sardas, com iluminação suave vindo da lateral.'
+  },
+  [CreateFunction.Anime]: {
+    title: 'Estilo Anime',
+    description: 'Cria imagens no estilo de animes e mangás japoneses, com cores vibrantes, linhas definidas e expressões características.',
+    example: 'Uma garota mágica com cabelo rosa, em uma cidade de Tóquio à noite.'
+  }
+};
+
+const editTooltips = {
+    [EditFunction.AddRemove]: {
+        title: 'Adicionar/Remover',
+        description: 'Permite pintar sobre uma área da imagem e usar um prompt para descrever o que adicionar ou remover nesse local.',
+        example: "Pinte sobre o céu da imagem e digite 'adicionar uma aurora boreal'."
+    },
+    [EditFunction.MagicExpand]: {
+        title: 'Expansão Mágica',
+        description: 'Expande a imagem para além de suas bordas originais (outpainting), preenchendo o novo espaço com conteúdo gerado por IA.',
+        example: "Posicione a foto de uma praia no canto do quadro de expansão e digite 'um oceano vasto com navios distantes'."
+    },
+    [EditFunction.Retouch]: {
+        title: 'Retoque',
+        description: 'Usa IA para corrigir pequenas imperfeições, remover objetos indesejados ou melhorar a qualidade geral da imagem com base no seu prompt.',
+        example: 'Remover arranhões de uma foto antiga.'
+    },
+    [EditFunction.Style]: {
+        title: 'Estilo',
+        description: 'Aplica um novo estilo artístico à imagem inteira, preservando o conteúdo original.',
+        example: "Transformar a foto de uma cidade em uma pintura no estilo de Van Gogh."
+    },
+    [EditFunction.Compose]: {
+        title: 'Unir Imagens',
+        description: 'Combina duas imagens de forma criativa com base em uma instrução, ideal para criar colagens ou efeitos de dupla exposição.',
+        example: "Imagem 1: retrato de uma pessoa; Imagem 2: uma galáxia; Prompt: 'criar um efeito de dupla exposição'."
+    }
+};
+
+const enhanceTooltips = {
+    [EnhanceFunction.Upscale]: {
+        title: 'Ampliar Qualidade',
+        description: 'Aumenta a resolução da imagem, adicionando mais detalhes e nitidez sem alterar o conteúdo (upscale).',
+    },
+    [EnhanceFunction.FixDetails]: {
+        title: 'Corrigir Detalhes',
+        description: 'Melhora a nitidez geral da imagem, remove ruído e corrige pequenas falhas ou artefatos de compressão.',
+    },
+    [EnhanceFunction.AdjustColor]: {
+        title: 'Ajustar Cor',
+        description: 'Realiza uma correção de cor inteligente para tornar a imagem mais vibrante e equilibrada.',
+    },
+    [EnhanceFunction.AdjustLighting]: {
+        title: 'Ajustar Luz',
+        description: 'Ajusta a iluminação da imagem para adicionar mais profundidade, contraste e um toque dramático.',
+    }
+};
+
 
 const aspectRatios = [
     { id: '1:1', name: '1:1' },
@@ -355,7 +462,6 @@ const fileToImageFile = (file: File): Promise<ImageFile> => {
             }
         };
         reader.onerror = (error) => reject(error);
-        // FIX: Corrected typo from readDataURL to readAsDataURL.
         reader.readAsDataURL(file);
     });
 };
@@ -377,7 +483,6 @@ const initialEffects = {
 type Effects = typeof initialEffects;
 type HistoryState = { image: string | null; effects: Effects };
 
-// FIX: Removed local UserSettings interface; it is now imported from types.ts.
 interface ReferenceImageState {
   id: string;
   previewUrl: string;
@@ -528,6 +633,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
     const [progress, setProgress] = useState<number | null>(null);
     const [progressMessage, setProgressMessage] = useState<string>('');
+    const [progressEtr, setProgressEtr] = useState<string | undefined>(undefined);
     const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
     const progressIntervalRef = useRef<any>(null);
 
@@ -563,17 +669,25 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     const maskCanvasRef = useRef<HTMLCanvasElement>(null);
     const lassoPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
     const [lassoPoints, setLassoPoints] = useState<{ x: number; y: number }[]>([]);
-    const imageRef = useRef<HTMLImageElement>(null);
     const isDrawingMask = useRef(false);
-
+    
     // MAGIC EXPAND (OUTPAINTING) STATE
     const [expandTargetRatio, setExpandTargetRatio] = useState<string>('16:9');
     const [expandImagePos, setExpandImagePos] = useState({ x: 0, y: 0 });
     const expandDragState = useRef({ isDragging: false, startX: 0, startY: 0, startImgX: 0, startImgY: 0 });
     const expandFrameRef = useRef<HTMLDivElement>(null);
+    const [displayedImageRect, setDisplayedImageRect] = useState({ width: 0, height: 0, x: 0, y: 0 });
 
+    const imageRef = useRef<HTMLImageElement>(null);
     const location = useLocation();
     const navigate = useNavigate();
+    
+    // Refs for animation targets
+    const [flyingImage, setFlyingImage] = useState<{ src: string; top: number; left: number; width: number; height: number; targetTop: number; targetLeft: number; targetWidth: number; targetHeight: number; } | null>(null);
+    const mainImageRef = useRef<HTMLImageElement>(null);
+    const editTabRef = useRef<HTMLButtonElement>(null);
+    const enhanceTabRef = useRef<HTMLButtonElement>(null);
+
 
     const mode = useMemo(() => {
         const path = location.pathname.split('/')[1];
@@ -666,17 +780,41 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
     const isComposeMode = useMemo(() => mode === Mode.Edit && activeEditFunc === EditFunction.Compose, [mode, activeEditFunc]);
 
-    // Cleanup object URLs on unmount or when previews change to prevent memory leaks
+    useEffect(() => {
+        // This effect handles cleanup for single-image previews when they are replaced.
+        // A cleanup function is returned, which React runs before the next effect or on unmount.
+        return () => {
+            if (image1Preview) URL.revokeObjectURL(image1Preview);
+        };
+    }, [image1Preview]);
+    useEffect(() => {
+        return () => {
+            if (image2Preview) URL.revokeObjectURL(image2Preview);
+        };
+    }, [image2Preview]);
+    useEffect(() => {
+        return () => {
+            if (enhanceImagePreview) URL.revokeObjectURL(enhanceImagePreview);
+        };
+    }, [enhanceImagePreview]);
+    useEffect(() => {
+        return () => {
+            if (videoReferencePreview) URL.revokeObjectURL(videoReferencePreview);
+        };
+    }, [videoReferencePreview]);
+    useEffect(() => {
+        return () => {
+            if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+        };
+    }, [videoBlobUrl]);
+
+    // Cleanup for the reference image array is handled on unmount, as individual removals are handled by their respective functions.
     useEffect(() => {
         return () => {
             referenceImageFiles.forEach(ref => URL.revokeObjectURL(ref.previewUrl));
-            if (videoReferencePreview) URL.revokeObjectURL(videoReferencePreview);
-            if (image1Preview) URL.revokeObjectURL(image1Preview);
-            if (image2Preview) URL.revokeObjectURL(image2Preview);
-            if (enhanceImagePreview) URL.revokeObjectURL(enhanceImagePreview);
-            if(videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
         };
     }, []); // Run only on unmount
+
 
     const startLoadingProgress = (messages: string[]) => {
         setProgress(0);
@@ -913,6 +1051,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         setVariations([]);
         setOriginalForVariations(null);
         setProgress(0);
+        setProgressEtr(undefined);
 
         const messages = [
             "Preparando a sua cena...",
@@ -935,12 +1074,12 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         }, 4000);
 
         try {
-            const onProgressUpdate = (progress: number, message: string) => {
+            const onProgressUpdate = (progress: number, message: string, etr?: string) => {
                 setProgress(progress);
-                if(message) setProgressMessage(message);
+                if (message) setProgressMessage(message);
+                if (etr) setProgressEtr(etr);
             };
 
-            // The service now handles the download and returns a blob URL directly.
             const blobUrl = await generateVideoWithGemini(prompt, onProgressUpdate, videoReferenceImage ?? undefined, motionLevel);
             
             clearInterval(messageInterval);
@@ -950,6 +1089,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
             setProgress(100);
             setProgressMessage("Concluído!");
+            setProgressEtr(undefined);
             setTimeout(() => {
                 setProgress(null);
                 setIsLoading(false);
@@ -959,6 +1099,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             clearInterval(messageInterval);
             setToastError(parseApiError(error));
             setProgress(null);
+            setProgressEtr(undefined);
             setIsLoading(false);
         }
     };
@@ -968,22 +1109,21 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             setToastError('Por favor, carregue uma imagem para editar.');
             return;
         }
+        if (isComposeMode && !image2) {
+            setToastError('Por favor, carregue a segunda imagem para unir.');
+            return;
+        }
+        if (activeEditFunc !== EditFunction.MagicExpand && !prompt.trim()) {
+             setToastError('Por favor, descreva a edição desejada.');
+             return;
+        }
+
+        const expandFrameRect = isMagicExpandModeActive ? expandFrameRef.current?.getBoundingClientRect() : null;
+        const expandImageRect = isMagicExpandModeActive ? imageRef.current?.getBoundingClientRect() : null;
         
         setIsLoading(true);
         setVariations([]);
         setOriginalForVariations(null);
-
-        if (isComposeMode && !image2) {
-            setToastError('Por favor, carregue a segunda imagem para unir.');
-            setIsLoading(false);
-            return;
-        }
-        
-        if (activeEditFunc !== EditFunction.MagicExpand && !prompt.trim()) {
-             setToastError('Por favor, descreva a edição desejada.');
-             setIsLoading(false);
-             return;
-        }
 
         const stopProgress = startLoadingProgress(["Aplicando magia digital...", "Ajustando a realidade...", "Processando sua obra-prima..."]);
         
@@ -1023,23 +1163,46 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 await new Promise(resolve => { originalImage.onload = resolve; });
                 const originalWidth = originalImage.naturalWidth;
                 const originalHeight = originalImage.naturalHeight;
+                const originalAspectRatio = originalWidth / originalHeight;
                 
                 let newWidth, newHeight;
-                if (targetAspectRatio > (originalWidth / originalHeight)) {
+                if (targetAspectRatio > originalAspectRatio) {
                     newHeight = originalHeight;
-                    newWidth = originalHeight * targetAspectRatio;
+                    newWidth = Math.round(originalHeight * targetAspectRatio);
                 } else {
                     newWidth = originalWidth;
-                    newHeight = originalWidth / targetAspectRatio;
+                    newHeight = Math.round(originalWidth / targetAspectRatio);
+                }
+                
+                const frame = expandFrameRect;
+                const image = expandImageRect;
+
+                if (!frame || !image) {
+                    throw new Error("Não foi possível obter as dimensões do quadro de expansão.");
                 }
 
+                // Convert the on-screen drag position to a scaled position on the final canvas
+                const dragRangeX = frame.width - image.width;
+                const dragRangeY = frame.height - image.height;
+
+                const totalTranslateX = (frame.width - image.width) / 2;
+                const currentTranslateX = expandImagePos.x;
+                const ratioX = dragRangeX > 1 ? (currentTranslateX + totalTranslateX) / dragRangeX : 0.5;
+
+                const totalTranslateY = (frame.height - image.height) / 2;
+                const currentTranslateY = expandImagePos.y;
+                const ratioY = dragRangeY > 1 ? (currentTranslateY + totalTranslateY) / dragRangeY : 0.5;
+                
+                const finalDragRangeX = newWidth - originalWidth;
+                const finalDragRangeY = newHeight - originalHeight;
+
+                const imgX = Math.round(finalDragRangeX * ratioX);
+                const imgY = Math.round(finalDragRangeY * ratioY);
+                
                 const imageCanvas = document.createElement('canvas');
                 imageCanvas.width = newWidth;
                 imageCanvas.height = newHeight;
                 const imgCtx = imageCanvas.getContext('2d')!;
-                // Center the image
-                const imgX = (newWidth - originalWidth) / 2;
-                const imgY = (newHeight - originalHeight) / 2;
                 imgCtx.drawImage(originalImage, imgX, imgY);
 
                 const maskCanvas = document.createElement('canvas');
@@ -1343,6 +1506,47 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             setIsUploading(prev => ({ ...prev, enhance: false }));
         }
     };
+    
+    const handleAnimatedSend = (target: 'edit' | 'enhance') => {
+        const sourceRect = mainImageRef.current?.getBoundingClientRect();
+        const targetButton = target === 'edit' ? editTabRef.current : enhanceTabRef.current;
+        const targetRect = targetButton?.getBoundingClientRect();
+        const currentImage = editHistory[currentHistoryIndex]?.image;
+
+        if (!sourceRect || !targetRect || !currentImage) {
+            // Fallback to non-animated version if refs aren't ready
+            if (target === 'edit') handleSendToEdit();
+            else handleSendToEnhance();
+            return;
+        }
+
+        setFlyingImage({
+            src: currentImage,
+            top: sourceRect.top,
+            left: sourceRect.left,
+            width: sourceRect.width,
+            height: sourceRect.height,
+            targetTop: targetRect.top + targetRect.height / 2,
+            targetLeft: targetRect.left + targetRect.width / 2,
+            targetWidth: 0,
+            targetHeight: 0,
+        });
+
+        // Use a short timeout to let the state update and animation start
+        // before we navigate and change the UI drastically.
+        setTimeout(() => {
+            if (target === 'edit') {
+                handleSendToEdit();
+            } else {
+                handleSendToEnhance();
+            }
+        }, 100); // Small delay
+
+        // Clean up the flying image after animation
+        setTimeout(() => {
+            setFlyingImage(null);
+        }, 700); // Animation duration (600ms) + buffer
+    };
 
     const handleExport = async (format: 'jpeg' | 'png', quality: number) => {
         const currentImage = editHistory[currentHistoryIndex].image;
@@ -1492,8 +1696,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             }
         } else {
             ctx.globalCompositeOperation = activeMaskTool === 'brush' ? 'source-over' : 'destination-out';
-            ctx.strokeStyle = 'rgba(192, 132, 252, 0.7)'; // Brush color
-            ctx.fillStyle = 'rgba(192, 132, 252, 0.7)';
+            ctx.strokeStyle = 'rgba(217, 70, 239, 0.7)'; // Brush color
+            ctx.fillStyle = 'rgba(217, 70, 239, 0.7)';
             ctx.lineWidth = maskBrushSize;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -1519,7 +1723,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             maskCtx.closePath();
             
             maskCtx.globalCompositeOperation = 'source-over';
-            maskCtx.fillStyle = 'rgba(192, 132, 252, 0.7)';
+            maskCtx.fillStyle = 'rgba(217, 70, 239, 0.7)';
             maskCtx.fill();
 
             const previewCanvas = lassoPreviewCanvasRef.current;
@@ -1552,28 +1756,28 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     
     // MAGIC EXPAND LOGIC
     const handleExpandMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || !expandFrameRef.current || !imageRef.current) return;
         e.preventDefault();
+        
+        const frameRect = expandFrameRef.current.getBoundingClientRect();
+        const imageRect = imageRef.current.getBoundingClientRect();
+
         expandDragState.current = { isDragging: true, startX: e.clientX, startY: e.clientY, startImgX: expandImagePos.x, startImgY: expandImagePos.y };
         
         const handleMove = (ev: MouseEvent) => {
-            if (!expandDragState.current.isDragging || !expandFrameRef.current || !imageRef.current) return;
+            if (!expandDragState.current.isDragging) return;
 
-            const frameRect = expandFrameRef.current.getBoundingClientRect();
-            const imageRect = imageRef.current.getBoundingClientRect();
-            
             const dx = ev.clientX - expandDragState.current.startX;
             const dy = ev.clientY - expandDragState.current.startY;
             
             let newX = expandDragState.current.startImgX + dx;
             let newY = expandDragState.current.startImgY + dy;
 
-            // Clamp positions
-            const minX = 0;
-            const minY = 0;
-            const maxX = frameRect.width - imageRect.width;
-            const maxY = frameRect.height - imageRect.height;
-            
+            const maxX = (frameRect.width - imageRect.width) / 2;
+            const minX = -maxX;
+            const maxY = (frameRect.height - imageRect.height) / 2;
+            const minY = -maxY;
+
             newX = Math.max(minX, Math.min(newX, maxX));
             newY = Math.max(minY, Math.min(newY, maxY));
             
@@ -1590,12 +1794,48 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         window.addEventListener('mouseup', handleUp);
     }, [expandImagePos]);
 
+    useLayoutEffect(() => {
+        const updateRect = () => {
+            if (isMagicExpandModeActive && imageRef.current) {
+                const iRect = imageRef.current.getBoundingClientRect();
+                 setDisplayedImageRect({
+                    width: iRect.width,
+                    height: iRect.height,
+                    x: 0, // Not needed for this visual effect
+                    y: 0
+                });
+            }
+        };
+        
+        const img = imageRef.current;
+        if (img) {
+            if (img.complete) {
+                updateRect();
+            } else {
+                img.onload = updateRect;
+            }
+        }
+        
+        window.addEventListener('resize', updateRect);
+        return () => {
+            if(img) img.onload = null;
+            window.removeEventListener('resize', updateRect);
+        };
+    }, [isMagicExpandModeActive, image1Preview]);
+    
+    useEffect(() => {
+        // Reset image position when the aspect ratio changes
+        setExpandImagePos({ x: 0, y: 0 });
+    }, [expandTargetRatio]);
+
 
     const renderCreateFunctions = () => (
         <CollapsibleSection title="Estilo de Criação" defaultOpen={true}>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
                 {createFunctions.map((func) => (
-                    <FunctionCard key={func.id} icon={func.icon} name={func.name} sublabel={(func as any).sublabel} isActive={activeCreateFunc === func.id} onClick={() => setActiveCreateFunc(func.id)} />
+                    <Tooltip key={func.id} {...createTooltips[func.id]}>
+                        <FunctionCard icon={func.icon} name={func.name} sublabel={(func as any).sublabel} isActive={activeCreateFunc === func.id} onClick={() => setActiveCreateFunc(func.id)} />
+                    </Tooltip>
                 ))}
             </div>
             {activeCreateFunc !== CreateFunction.Video && (
@@ -1603,7 +1843,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     <label className="block text-sm font-medium text-gray-300 mb-2">Proporção</label>
                     <div className="flex space-x-2">
                          {aspectRatios.map(ratio => (
-                            <button key={ratio.id} onClick={() => setAspectRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${aspectRatio === ratio.id ? 'bg-purple-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
+                            <button key={ratio.id} onClick={() => setAspectRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${aspectRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
                         ))}
                     </div>
                 </div>
@@ -1612,9 +1852,9 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                  <div className="pt-4">
                     <label className="block text-sm font-medium text-gray-300 mb-2">Nível de Movimento</label>
                     <div className="flex space-x-2">
-                        <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-purple-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
-                        <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-purple-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
-                        <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-purple-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
+                        <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
+                        <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
+                        <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
                     </div>
                 </div>
             )}
@@ -1625,7 +1865,9 @@ export const StudioPage: React.FC<StudioPageProps> = ({
          <CollapsibleSection title="Função de Edição" defaultOpen={true}>
             <div className="grid grid-cols-3 gap-2">
                 {editFunctions.map((func) => (
-                    <FunctionCard key={func.id} icon={func.icon} name={func.name} isActive={activeEditFunc === func.id} onClick={() => setActiveEditFunc(func.id)} />
+                    <Tooltip key={func.id} {...editTooltips[func.id]}>
+                        <FunctionCard icon={func.icon} name={func.name} isActive={activeEditFunc === func.id} onClick={() => setActiveEditFunc(func.id)} />
+                    </Tooltip>
                 ))}
             </div>
             {isMagicExpandModeActive && (
@@ -1633,7 +1875,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     <label className="block text-sm font-medium text-gray-300 mb-2">Expandir Para Proporção</label>
                     <div className="flex space-x-2">
                          {aspectRatios.map(ratio => (
-                            <button key={ratio.id} onClick={() => setExpandTargetRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${expandTargetRatio === ratio.id ? 'bg-purple-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
+                            <button key={ratio.id} onClick={() => setExpandTargetRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${expandTargetRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
                         ))}
                     </div>
                 </div>
@@ -1645,14 +1887,16 @@ export const StudioPage: React.FC<StudioPageProps> = ({
          <CollapsibleSection title="Função de Melhoria" defaultOpen={true}>
             <div className="grid grid-cols-2 gap-2">
                 {enhanceFunctions.map((func) => (
-                    <FunctionCard key={func.id} icon={func.icon} name={func.name} isActive={activeEnhanceFunc === func.id} onClick={() => setActiveEnhanceFunc(func.id)} />
+                     <Tooltip key={func.id} {...enhanceTooltips[func.id]}>
+                        <FunctionCard key={func.id} icon={func.icon} name={func.name} isActive={activeEnhanceFunc === func.id} onClick={() => setActiveEnhanceFunc(func.id)} />
+                    </Tooltip>
                 ))}
             </div>
             {activeEnhanceFunc === EnhanceFunction.Upscale && (
                 <div className="pt-4 space-y-2">
                     <label className="block text-sm font-medium text-gray-300">Nível de Ampliação</label>
                     <div className="grid grid-cols-3 gap-2">
-                       { [2,4,'4K'].map(val => <button key={val} onClick={() => setEnhanceUpscaleValue(val as any)} className={`p-2 text-sm font-semibold rounded-md transition-colors ${enhanceUpscaleValue === val ? 'bg-purple-500 text-white' : 'bg-gray-800 hover:bg-gray-700'}`}>{val}{typeof val === 'number' ? 'x' : ''}</button>)}
+                       { [2,4,'4K'].map(val => <button key={val} onClick={() => setEnhanceUpscaleValue(val as any)} className={`p-2 text-sm font-semibold rounded-md transition-colors ${enhanceUpscaleValue === val ? 'bg-fuchsia-500 text-white' : 'bg-gray-800 hover:bg-gray-700'}`}>{val}{typeof val === 'number' ? 'x' : ''}</button>)}
                     </div>
                 </div>
             )}
@@ -1689,7 +1933,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                 <img src={file.previewUrl} className="w-full h-full object-cover" alt={`Reference ${index + 1}`} />
                                 {file.imageFile === null && (
                                     <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-lg">
-                                        <svg className="animate-spin h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg className="animate-spin h-5 w-5 text-fuchsia-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -1705,8 +1949,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     ))}
 
                     {referenceImageFiles.length < 5 && (
-                        <label htmlFor="ref-upload-input" className="aspect-square w-full h-full flex flex-col items-center justify-center bg-gray-900/50 border-2 border-dashed border-gray-700 hover:border-purple-500/50 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-800/50 group">
-                            <Icon name="add" className="w-6 h-6 text-gray-500 transition-colors group-hover:text-purple-400" />
+                        <label htmlFor="ref-upload-input" className="aspect-square w-full h-full flex flex-col items-center justify-center bg-gray-900/50 border-2 border-dashed border-gray-700 hover:border-fuchsia-500/50 rounded-lg cursor-pointer transition-all duration-300 hover:bg-gray-800/50 group">
+                            <Icon name="add" className="w-6 h-6 text-gray-500 transition-colors group-hover:text-fuchsia-400" />
                             <input id="ref-upload-input" type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={(e) => e.target.files && handleAddReferenceImage(e.target.files[0])} />
                         </label>
                     )}
@@ -1740,6 +1984,23 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             onDragOver={handleAppDragOver}
             onDrop={handleAppDrop}
         >
+            {flyingImage && (
+                <img
+                    src={flyingImage.src}
+                    alt="Animating image"
+                    className="fixed z-[100] object-contain rounded-lg animate-fly-to-target"
+                    style={{
+                        top: `${flyingImage.top}px`,
+                        left: `${flyingImage.left}px`,
+                        width: `${flyingImage.width}px`,
+                        height: `${flyingImage.height}px`,
+                        '--target-top': `${flyingImage.targetTop}px`,
+                        '--target-left': `${flyingImage.targetLeft}px`,
+                        '--target-width': `${flyingImage.targetWidth}px`,
+                        '--target-height': `${flyingImage.targetHeight}px`,
+                    }}
+                />
+            )}
             {isDraggingOverApp && <DropOverlay />}
             {showWelcome && <WelcomeModal onClose={handleCloseWelcome} />}
             
@@ -1759,10 +2020,10 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             />
 
             {/* Left Panel */}
-            <aside className="w-full md:w-96 bg-gray-900/60 backdrop-blur-xl border-r border-gray-800/50 p-4 space-y-4 flex-shrink-0 flex flex-col" style={{height: '100vh'}}>
+            <aside className="w-full md:w-[480px] bg-gray-900/60 backdrop-blur-xl border-r border-gray-800/50 p-4 space-y-4 flex-shrink-0 flex flex-col" style={{height: '100vh'}}>
                 <header className="flex justify-between items-center pb-4 pt-2 border-b border-gray-700/50">
                     <div>
-                        <h1 className="font-extrabold text-3xl tracking-tight bg-gradient-to-br from-fuchsia-400 to-purple-500 bg-clip-text text-transparent">GX VERSE</h1>
+                        <h1 className="font-extrabold text-3xl tracking-tight bg-gradient-to-br from-fuchsia-500 to-purple-600 bg-clip-text text-transparent">GX VERSE</h1>
                         <p className="text-sm font-semibold text-gray-400 tracking-widest">AI STUDIO</p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1779,18 +2040,25 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 <div className="flex-grow overflow-y-auto pr-2 -mr-4 space-y-4">
 
                     <div className="flex bg-gray-800/70 p-1 rounded-lg">
-                        <button onClick={() => navigate('/')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors ${mode === Mode.Create ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}>Criar</button>
-                        <button onClick={() => navigate('/edit')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors ${mode === Mode.Edit ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}>Editar</button>
-                        <button onClick={() => navigate('/enhance')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors ${mode === Mode.Enhance ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}>Melhorar</button>
+                        <button onClick={() => navigate('/')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Create ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="sparkles" className="w-4 h-4"/><span>Criar</span></button>
+                        <button ref={editTabRef} onClick={() => navigate('/edit')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Edit ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="magic" className="w-4 h-4"/><span>Editar</span></button>
+                        <button ref={enhanceTabRef} onClick={() => navigate('/enhance')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Enhance ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="sparkles" className="w-4 h-4"/><span>Melhorar</span></button>
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="prompt" className="text-sm font-medium text-gray-300">
-                          {mode === Mode.Enhance ? 'Instrução Adicional' : activeEditFunc === EditFunction.MagicExpand ? 'Descreva a Expansão (Opcional)' : 'Prompt Principal'}
-                        </label>
+                        <Tooltip
+                            title="Descreva sua Visão"
+                            description="Seja detalhado! Mencione o assunto, o ambiente, o estilo (ex: 'pintura a óleo', 'foto realista'), a iluminação e as cores para obter os melhores resultados."
+                            example="Um gato astronauta flutuando no espaço, estilo cyberpunk, com nebulosas de neon ao fundo."
+                        >
+                             <label htmlFor="prompt" className="text-sm font-medium text-gray-300 flex items-center cursor-help">
+                                {mode === Mode.Enhance ? 'Instrução Adicional' : activeEditFunc === EditFunction.MagicExpand ? 'Descreva a Expansão (Opcional)' : 'Prompt Principal'}
+                                <Icon name="info-circle" className="w-4 h-4 ml-1.5 text-gray-500" />
+                            </label>
+                        </Tooltip>
                         <div className="relative">
                            <textarea id="prompt" rows={6} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                            className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2.5 text-sm placeholder-gray-500 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-colors pr-10"
+                            className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2.5 text-sm placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors pr-10"
                             placeholder={
                                mode === Mode.Create ? 'Ex: um astronauta surfando em uma onda cósmica' : 
                                mode === Mode.Edit && activeEditFunc === EditFunction.MagicExpand ? 'Ex: um céu estrelado com uma nebulosa' :
@@ -1798,22 +2066,30 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                'Ex: deixe as cores mais vibrantes (opcional)'
                             }/>
                             {mode === Mode.Create &&
-                              <button
-                                onClick={handleEnhancePrompt}
-                                disabled={isEnhancingPrompt}
-                                title="Melhorar prompt com IA"
-                                className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-800 hover:bg-purple-900 text-purple-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {isEnhancingPrompt ? (
-                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                ) : (
-                                  <Icon name="sparkles" className="w-4 h-4" />
-                                )}
-                              </button>
+                                <Tooltip
+                                    title="Melhorar Prompt"
+                                    description="Não sabe como descrever? Deixe a IA refinar e detalhar seu prompt para resultados mais ricos e criativos."
+                                >
+                                  <button
+                                    onClick={handleEnhancePrompt}
+                                    disabled={isEnhancingPrompt}
+                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-800 hover:bg-fuchsia-900 text-fuchsia-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    {isEnhancingPrompt ? (
+                                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    ) : (
+                                      <Icon name="sparkles" className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                </Tooltip>
                             }
                         </div>
                     </div>
                     
+                    {mode === Mode.Create && activeCreateFunc !== CreateFunction.Video ? (
+                        renderReferenceImages()
+                    ) : null}
+
                     {mode === Mode.Create ? renderCreateFunctions() : 
                      mode === Mode.Edit ? renderEditFunctions() :
                      renderEnhanceFunctions()}
@@ -1838,10 +2114,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                             )}
                         </div>
                     )}
-                    
-                    {mode === Mode.Create && activeCreateFunc !== CreateFunction.Video ? (
-                        renderReferenceImages()
-                    ) : null}
 
                     {mode === Mode.Edit && (
                         <div className="space-y-4">
@@ -1858,7 +2130,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                         </div>
                     )}
                     
-                    {generatedImage && renderAdjustmentsPanel()}
+                    {generatedImage && mode !== Mode.Create && renderAdjustmentsPanel()}
 
                     {mode === Mode.Create && (
                         <CollapsibleSection title="Opções Avançadas">
@@ -1866,7 +2138,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                 <div className="space-y-2">
                                     <label htmlFor="negative-prompt" className="text-sm font-medium text-gray-300">Prompt Negativo</label>
                                     <input id="negative-prompt" type="text" value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)}
-                                        className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2 text-sm placeholder-gray-500 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-colors"
+                                        className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2 text-sm placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors"
                                         placeholder="Ex: texto, marca d'água, deformado"/>
                                 </div>
                             )}
@@ -1900,7 +2172,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             {/* Right Panel (Main Content) */}
             <main className="flex-1 flex flex-col p-4 bg-black/30">
                 <div className="flex-1 flex items-center justify-center relative bg-grid-pattern rounded-lg min-h-[300px] transition-all duration-300">
-                    {isLoading && progress !== null && <ProgressBar progress={progress} message={progressMessage} />}
+                    {isLoading && progress !== null && <ProgressBar progress={progress} message={progressMessage} etr={progressEtr} />}
                     
                     {!isLoading && generatedImage && beforeImage && (
                         <div className="w-full h-full p-4 animate-fade-in-up">
@@ -1908,17 +2180,62 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                         </div>
                     )}
                     
-                    {!isLoading && generatedImage && !beforeImage && !videoBlobUrl && (
-                         <div className="relative w-full h-full flex items-center justify-center group">
-                            <img src={generatedImage} alt="Generated art" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50 animate-fade-in-up" style={{ filter: filterCss }} />
-                            <button
-                                onClick={() => setIsFocusViewOpen(true)}
-                                className="absolute flex items-center justify-center px-5 py-2.5 bg-black/70 backdrop-blur-sm rounded-lg border border-white/20 text-white font-semibold transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-black/80 hover:border-white/40 hover:scale-105 transform"
-                                aria-label="Visualizar Detalhes"
-                            >
-                                <Icon name="expand" className="w-5 h-5 mr-2" />
-                                Visualizar Detalhes
-                            </button>
+                    {!isLoading && generatedImage && !beforeImage && !videoBlobUrl && !isMaskingModeActive && !isMagicExpandModeActive && (
+                         <div className="w-full h-full flex flex-col items-center justify-center p-4 animate-fade-in-up">
+                            <div className="relative flex-grow w-full flex items-center justify-center">
+                                <div className="relative p-1 bg-gray-900/50 border border-gray-800/50 rounded-xl max-w-full max-h-full">
+                                    <img
+                                        ref={mainImageRef}
+                                        src={generatedImage}
+                                        alt="Generated art"
+                                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50"
+                                        style={{ filter: filterCss }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex-shrink-0 flex items-center space-x-2 mt-4 p-2 bg-gray-900/60 backdrop-blur-sm border border-gray-800/50 rounded-lg">
+                                <button onClick={() => setIsFocusViewOpen(true)} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                                    <Icon name="expand" className="w-4 h-4"/>
+                                    <span>Visualizar</span>
+                                </button>
+                                <div className="w-px h-6 bg-gray-700"></div>
+                                <button onClick={() => handleAnimatedSend('edit')} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                                    <Icon name="magic" className="w-4 h-4 text-fuchsia-400"/>
+                                    <span>Editar</span>
+                                </button>
+                                <button onClick={() => handleAnimatedSend('enhance')} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                                    <Icon name="sparkles" className="w-4 h-4 text-fuchsia-400"/>
+                                    <span>Melhorar</span>
+                                </button>
+                                <div className="w-px h-6 bg-gray-700"></div>
+                                <div className="relative" ref={exportButtonRef}>
+                                    <button
+                                        onClick={() => setIsExportDropdownOpen(prev => !prev)}
+                                        title="Baixar Imagem"
+                                        className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition-colors transform active:scale-95 shadow-lg"
+                                    >
+                                        <Icon name="download" className="w-5 h-5" />
+                                        <span>Baixar</span>
+                                        <Icon name="chevron-down" className={`w-4 h-4 transition-transform ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {isExportDropdownOpen && (
+                                        <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden animate-fade-in-up z-10">
+                                            <ul className="py-1">
+                                                <li>
+                                                    <button onClick={() => { handleExport('jpeg', 92); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
+                                                        <span>Baixar como JPEG</span>
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button onClick={() => { handleExport('png', 100); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
+                                                        <span>Baixar como PNG</span>
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -1927,21 +2244,33 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     )}
                     
                     {!isLoading && isMagicExpandModeActive && (
-                        <div ref={expandFrameRef} className="relative w-full h-full flex items-center justify-center p-4">
-                            {/* This inner div controls the aspect ratio of the frame */}
-                            <div className="relative w-full h-full border-2 border-dashed border-purple-500/50 rounded-lg overflow-hidden flex items-center justify-center" style={{ aspectRatio: expandTargetRatio.replace(':', '/') }}>
+                        <div className="w-full h-full p-4 flex items-center justify-center bg-checkerboard rounded-lg">
+                            <div
+                                ref={expandFrameRef}
+                                className="relative border-2 border-dashed border-fuchsia-500/50 rounded-lg overflow-hidden flex items-center justify-center"
+                                style={{ aspectRatio: expandTargetRatio.replace(':', '/') }}
+                            >
                                 <img
                                     ref={imageRef}
                                     src={image1Preview!}
                                     alt="Image to expand"
                                     className="absolute max-w-full max-h-full cursor-move shadow-2xl shadow-black/80"
                                     style={{ 
-                                        left: `${expandImagePos.x}px`,
-                                        top: `${expandImagePos.y}px`,
+                                        left: '50%',
+                                        top: '50%',
+                                        transform: `translate(calc(-50% + ${expandImagePos.x}px), calc(-50% + ${expandImagePos.y}px))`,
                                     }}
                                     onMouseDown={handleExpandMouseDown}
                                     draggable={false}
                                 />
+                                <div className="absolute inset-0 pointer-events-none" style={{
+                                    boxShadow: 'inset 0 0 0 2000px rgba(0, 0, 0, 0.5)',
+                                    left: `calc(50% + ${expandImagePos.x}px)`,
+                                    top: `calc(50% + ${expandImagePos.y}px)`,
+                                    width: `${displayedImageRect.width}px`,
+                                    height: `${displayedImageRect.height}px`,
+                                    transform: `translate(-50%, -50%)`,
+                                }} />
                             </div>
                         </div>
                     )}
@@ -1962,13 +2291,13 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
                             />
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md p-2 rounded-lg border border-gray-700/50 flex items-center space-x-3 shadow-lg">
-                                <button onClick={() => setActiveMaskTool('brush')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'brush' ? 'bg-purple-600' : 'hover:bg-gray-700'}`} title="Pincel">
+                                <button onClick={() => setActiveMaskTool('brush')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'brush' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Pincel">
                                     <Icon name="brush" className="w-5 h-5"/>
                                 </button>
-                                <button onClick={() => setActiveMaskTool('eraser')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'eraser' ? 'bg-purple-600' : 'hover:bg-gray-700'}`} title="Borracha">
+                                <button onClick={() => setActiveMaskTool('eraser')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'eraser' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Borracha">
                                     <Icon name="eraser" className="w-5 h-5"/>
                                 </button>
-                                <button onClick={() => setActiveMaskTool('lasso')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'lasso' ? 'bg-purple-600' : 'hover:bg-gray-700'}`} title="Laço">
+                                <button onClick={() => setActiveMaskTool('lasso')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'lasso' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Laço">
                                     <Icon name="lasso" className="w-5 h-5"/>
                                 </button>
                                 {(activeMaskTool === 'brush' || activeMaskTool === 'eraser') && (
@@ -1982,20 +2311,55 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                             </div>
                         </div>
                     )}
-
+                    
                     {!isLoading && !generatedImage && !videoBlobUrl && !isMaskingModeActive && !isMagicExpandModeActive && (
-                        <div className="text-center text-gray-500">
-                             {mode === Mode.Edit && image1Preview ? (
+                         <div className="w-full h-full text-center text-gray-500 flex flex-col items-center justify-center p-4">
+                            {mode === Mode.Edit && image1Preview ? (
                                 <img src={image1Preview} alt="Image to edit" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50" />
-                             ) : mode === Mode.Enhance && enhanceImagePreview ? (
-                                 <img src={enhanceImagePreview} alt="Image to enhance" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50" />
-                             ) : (
+                            ) : mode === Mode.Enhance && enhanceImagePreview ? (
+                                <img src={enhanceImagePreview} alt="Image to enhance" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50" />
+                            ) : mode === Mode.Create ? (
+                                <div className="w-full max-w-4xl animate-fade-in-up">
+                                    <Icon name="sparkles" className="w-16 h-16 mx-auto text-fuchsia-500/60" />
+                                    <h2 className="mt-4 text-2xl font-bold text-white">Vamos transformar sua ideia em realidade?</h2>
+                                    <p className="text-gray-400 mb-8">Comece com um prompt ou clique em uma das inspirações abaixo.</p>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {inspirations.map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group transition-transform duration-300 ease-in-out hover:scale-105"
+                                                onClick={() => {
+                                                    setPrompt(item.prompt);
+                                                    setToastSuccess("Prompt copiado!");
+                                                }}
+                                                title="Clique para usar este prompt"
+                                            >
+                                                <img src={item.imageUrl} alt={item.prompt} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
+                                                    <p className="text-white text-sm font-medium leading-tight line-clamp-3 group-hover:underline">{item.prompt}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
                                 <>
                                     <Icon name="image" className="w-24 h-24 mx-auto text-gray-700/50" />
-                                    <p className="mt-4 font-semibold">Sua arte aparecerá aqui</p>
-                                    <p className="text-sm">Ajuste as configurações e clique em "Gerar"</p>
+                                    <p className="mt-4 font-semibold">
+                                        {
+                                            mode === Mode.Edit ? "Envie uma imagem para editar" :
+                                            mode === Mode.Enhance ? "Envie uma imagem para melhorar" :
+                                            "Sua arte aparecerá aqui"
+                                        }
+                                    </p>
+                                    <p className="text-sm">
+                                        {
+                                            mode === Mode.Edit || mode === Mode.Enhance ? "Use a área de upload na barra lateral" :
+                                            "Ajuste as configurações e clique em \"Gerar\""
+                                        }
+                                    </p>
                                 </>
-                             )}
+                            )}
                         </div>
                     )}
                     
@@ -2005,76 +2369,30 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                 <button onClick={handleUndo} disabled={currentHistoryIndex === 0} title="Desfazer" className="p-1.5 rounded-md hover:bg-gray-800 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"><Icon name="undo" className="w-5 h-5"/></button>
                                 <button onClick={handleRedo} disabled={currentHistoryIndex === editHistory.length - 1} title="Refazer" className="p-1.5 rounded-md hover:bg-gray-800 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"><Icon name="redo" className="w-5 h-5"/></button>
                             </div>
-                            <div className="absolute bottom-4 right-4" ref={exportButtonRef}>
-                                <div className="flex items-center space-x-2">
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setIsExportDropdownOpen(prev => !prev)}
-                                            title="Baixar Imagem"
-                                            className="flex items-center space-x-2 bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors transform active:scale-95 shadow-lg"
-                                        >
-                                            <Icon name="download" className="w-5 h-5" />
-                                            <span>Baixar</span>
-                                            <Icon name="chevron-down" className={`w-4 h-4 transition-transform ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        {isExportDropdownOpen && (
-                                            <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden animate-fade-in-up z-10">
-                                                <ul className="py-1">
-                                                    <li>
-                                                        <button onClick={() => { handleExport('jpeg', 92); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
-                                                            <span>Baixar como JPEG</span>
-                                                        </button>
-                                                    </li>
-                                                    <li>
-                                                        <button onClick={() => { handleExport('png', 100); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
-                                                             <span>Baixar como PNG</span>
-                                                        </button>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
                         </>
                     )}
                 </div>
-                 {isGeneratingVariations && progress !== null && (
-                    <div className="mt-4 h-32">
-                        <ProgressBar progress={progress} message={progressMessage} />
-                    </div>
-                 )}
-
-                {originalForVariations && !isGeneratingVariations && (
-                    <div className="mt-4 p-2 bg-gray-900/50 rounded-lg animate-fade-in-up">
-                        <h3 className="text-sm font-semibold mb-2 text-gray-300 px-1">Variações</h3>
-                        <div className="flex space-x-3 p-1 overflow-x-auto filmstrip-scrollbar">
-                            {[originalForVariations, ...variations].map((imgSrc, index) => {
-                                const isActive = imgSrc === generatedImage;
-                                return (
-                                    <div 
-                                        key={index}
-                                        className={`relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden group transition-all duration-200 ${isActive ? 'ring-2 ring-purple-400 shadow-lg shadow-purple-500/20' : 'ring-1 ring-gray-700'}`}
-                                    >
-                                        <img 
-                                            src={imgSrc} 
-                                            alt={`Variação ${index}`} 
-                                            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-200 cursor-pointer"
-                                            onClick={() => handleSelectVariation(imgSrc)}
-                                            title={isActive ? "Variação atual" : `Selecionar Variação ${index}`}
-                                        />
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                                            <button 
-                                                onClick={() => handleViewVariationDetails(imgSrc)}
-                                                className="p-2 rounded-full bg-black/50 hover:bg-purple-500/80 transition-colors"
-                                                title="Visualizar Detalhes"
-                                            >
-                                                <Icon name="expand" className="w-5 h-5 text-white" />
-                                            </button>
-                                        </div>
+                
+                 {/* Variations Display */}
+                {variations.length > 0 && !isLoading && (
+                    <div className="mt-4 p-4 bg-gray-900/50 rounded-lg animate-fade-in-up">
+                        <h3 className="text-sm font-semibold text-gray-300 mb-2">Variações Geradas</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                           {[originalForVariations, ...variations].slice(0, 5).map((img, index) => (
+                                <div key={index} className="aspect-square rounded-md overflow-hidden group relative cursor-pointer" onClick={() => handleSelectVariation(img!)} title="Clique para selecionar esta variação">
+                                    <img src={img!} alt={`Variation ${index}`} className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center p-2">
+                                        {index === 0 ? (
+                                            <p className="text-xs font-bold text-white bg-black/50 px-2 py-1 rounded-full">Original</p>
+                                        ) : (
+                                            <>
+                                                <button onClick={(e) => { e.stopPropagation(); handleSelectVariation(img!); }} className="text-xs font-semibold text-white bg-fuchsia-600/80 px-3 py-1.5 rounded-full hover:bg-fuchsia-500/80 transition-colors mb-2">Usar esta</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleViewVariationDetails(img!); }} className="text-xs font-semibold text-white bg-gray-700/80 px-3 py-1.5 rounded-full hover:bg-gray-600/80 transition-colors">Detalhes</button>
+                                            </>
+                                        )}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

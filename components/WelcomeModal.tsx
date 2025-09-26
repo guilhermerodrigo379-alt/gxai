@@ -8,7 +8,7 @@ interface WelcomeModalProps {
 const GuideStep: React.FC<{ icon: string; title: string; description: string }> = ({ icon, title, description }) => (
     <div className="flex items-start space-x-4">
         <div className="flex-shrink-0 bg-gray-800 p-3 rounded-lg">
-            <Icon name={icon} className="w-6 h-6 text-purple-400" />
+            <Icon name={icon} className="w-6 h-6 text-fuchsia-400" />
         </div>
         <div>
             <h4 className="text-lg font-bold text-white">{title}</h4>
@@ -21,7 +21,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onClose }) => {
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
             <div 
-                className="bg-gray-900/80 border border-gray-700/50 rounded-2xl w-full max-w-2xl shadow-2xl shadow-purple-500/10 p-8 transform transition-all"
+                className="bg-gray-900/80 border border-gray-700/50 rounded-2xl w-full max-w-2xl shadow-2xl shadow-fuchsia-500/10 p-8 transform transition-all"
                 onClick={e => e.stopPropagation()}
             >
                 <header className="text-center mb-6">
@@ -52,7 +52,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ onClose }) => {
                 <div className="mt-8 text-center">
                     <button
                         onClick={onClose}
-                        className="bg-purple-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-600 transition-colors transform active:scale-95 text-lg"
+                        className="bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 text-lg"
                     >
                         Vamos Começar!
                     </button>

@@ -18,7 +18,7 @@ export const EffectSlider: React.FC<EffectSliderProps> = ({ label, value, min, m
         <label className="text-sm font-medium text-gray-300">
           {label}
         </label>
-        <span className="bg-gray-800/80 text-purple-300 text-xs font-mono py-0.5 px-1.5 rounded">{value}{unit}</span>
+        <span className="bg-gray-800/80 text-fuchsia-300 text-xs font-mono py-0.5 px-1.5 rounded">{value}{unit}</span>
       </div>
       <input
         type="range"
