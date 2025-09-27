@@ -44,6 +44,39 @@ const Toast: React.FC<{ id: number; message: string; type: string; onDismiss: (i
     );
 };
 
+// Helper to create small thumbnails to avoid exceeding localStorage quota.
+const createThumbnail = (dataUrl: string, maxSize: number = 256): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('Canvas context not available'));
+
+            let { width, height } = img;
+            if (width > height) {
+                if (width > maxSize) {
+                    height *= maxSize / width;
+                    width = maxSize;
+                }
+            } else {
+                if (height > maxSize) {
+                    width *= maxSize / height;
+                    height = maxSize;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            // Use JPEG at 80% quality for a good balance of size and quality.
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = (err) => reject(err);
+        img.src = dataUrl;
+    });
+};
+
 
 const App: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -102,15 +135,37 @@ const App: React.FC = () => {
                 localStorage.setItem(historyKey, JSON.stringify(history));
             } catch (error) {
                 console.error("Failed to save history for user", error);
+                if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.message.includes('exceeded the quota'))) {
+                    setToastError("Não foi possível salvar o histórico. O armazenamento local está cheio.");
+                } else {
+                    setToastError("Ocorreu um erro ao salvar o histórico.");
+                }
             }
         }
-    }, [history, currentUser]);
+    }, [history, currentUser, setToastError]);
 
 
-    const addToHistory = useCallback((newItemData: Omit<HistoryItem, 'id'>) => {
-        const newItem: HistoryItem = { ...newItemData, id: Date.now() };
-        setHistory(prev => [newItem, ...prev.filter(item => item.imageUrl !== newItem.imageUrl)].slice(0, MAX_HISTORY_ITEMS));
-    }, []);
+    const addToHistory = useCallback(async (newItemData: Omit<HistoryItem, 'id'>) => {
+        try {
+            // Generate thumbnails to save space in localStorage
+            const thumbnailImageUrl = await createThumbnail(newItemData.imageUrl);
+            const thumbnailBeforeImageUrl = newItemData.beforeImageUrl
+                ? await createThumbnail(newItemData.beforeImageUrl)
+                : undefined;
+
+            const newItem: HistoryItem = {
+                ...newItemData,
+                id: Date.now(),
+                imageUrl: thumbnailImageUrl,
+                beforeImageUrl: thumbnailBeforeImageUrl,
+            };
+            
+            setHistory(prev => [newItem, ...prev].slice(0, MAX_HISTORY_ITEMS));
+        } catch (error) {
+            console.error("Failed to create thumbnail for history:", error);
+            setToastError("Não foi possível salvar a imagem no histórico.");
+        }
+    }, [setToastError]);
 
     const handleClearHistory = () => {
         setHistory([]);

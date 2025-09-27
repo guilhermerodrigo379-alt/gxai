@@ -283,6 +283,27 @@
       .animate-fly-to-target {
           animation: fly-to-target 0.6s cubic-bezier(0.5, 0, 1, 0.5) forwards;
       }
+
+      /* Para as alças de redimensionamento da Expansão Mágica */
+      .resize-handle {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        background-color: #d946ef; /* fuchsia-500 */
+        border: 2px solid white;
+        border-radius: 50%;
+        z-index: 10;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 8px rgba(217, 70, 239, 0.5);
+      }
+      .resize-handle-n { top: 0; left: 50%; cursor: ns-resize; }
+      .resize-handle-s { top: 100%; left: 50%; cursor: ns-resize; }
+      .resize-handle-w { top: 50%; left: 0; cursor: ew-resize; }
+      .resize-handle-e { top: 50%; left: 100%; cursor: ew-resize; }
+      .resize-handle-nw { top: 0; left: 0; cursor: nwse-resize; }
+      .resize-handle-ne { top: 0; left: 100%; cursor: nesw-resize; }
+      .resize-handle-sw { top: 100%; left: 0; cursor: nesw-resize; }
+      .resize-handle-se { top: 100%; left: 100%; cursor: nwse-resize; }
     </style>
   <script type="importmap">
 {

@@ -324,6 +324,74 @@ const DropOverlay: React.FC = () => (
     </div>
 );
 
+const ImageActionsToolbar: React.FC<{
+    onViewDetails: () => void;
+    onSendToEdit: () => void;
+    onSendToEnhance: () => void;
+    onExport: (format: 'jpeg' | 'png', quality: number) => void;
+}> = ({ onViewDetails, onSendToEdit, onSendToEnhance, onExport }) => {
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const exportButtonRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (exportButtonRef.current && !exportButtonRef.current.contains(event.target as Node)) {
+                setIsExportDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    return (
+        <div className="flex-shrink-0 flex items-center justify-center space-x-2 mt-4 p-2 bg-gray-900/60 backdrop-blur-sm border border-gray-800/50 rounded-lg">
+            <button onClick={onViewDetails} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                <Icon name="expand" className="w-4 h-4"/>
+                <span>Visualizar</span>
+            </button>
+            <div className="w-px h-6 bg-gray-700"></div>
+            <button onClick={onSendToEdit} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                <Icon name="magic" className="w-4 h-4 text-fuchsia-400"/>
+                <span>Editar</span>
+            </button>
+            <button onClick={onSendToEnhance} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
+                <Icon name="sparkles" className="w-4 h-4 text-fuchsia-400"/>
+                <span>Melhorar</span>
+            </button>
+            <div className="w-px h-6 bg-gray-700"></div>
+            <div className="relative" ref={exportButtonRef}>
+                <button
+                    onClick={() => setIsExportDropdownOpen(prev => !prev)}
+                    title="Baixar Imagem"
+                    className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition-colors transform active:scale-95 shadow-lg"
+                >
+                    <Icon name="download" className="w-5 h-5" />
+                    <span>Baixar</span>
+                    <Icon name="chevron-down" className={`w-4 h-4 transition-transform ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isExportDropdownOpen && (
+                    <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden animate-fade-in-up z-10">
+                        <ul className="py-1">
+                            <li>
+                                <button onClick={() => { onExport('jpeg', 92); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
+                                    <span>Baixar como JPEG</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button onClick={() => { onExport('png', 100); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
+                                    <span>Baixar como PNG</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- END of Helper Components ---
 
 const createFunctions = [
@@ -397,8 +465,8 @@ const editTooltips = {
     },
     [EditFunction.MagicExpand]: {
         title: 'Expansão Mágica',
-        description: 'Expande a imagem para além de suas bordas originais (outpainting), preenchendo o novo espaço com conteúdo gerado por IA.',
-        example: "Posicione a foto de uma praia no canto do quadro de expansão e digite 'um oceano vasto com navios distantes'."
+        description: 'Aumente o tamanho da sua tela e use a IA para preencher o novo espaço. Arraste as alças para redimensionar e mova a imagem para reposicionar.',
+        example: "Arraste a alça direita para expandir a tela e digite 'adicionar uma floresta densa ao lado da montanha'."
     },
     [EditFunction.Retouch]: {
         title: 'Retoque',
@@ -583,6 +651,12 @@ const parseApiError = (error: unknown): string => {
     return potentialMessage || 'Ocorreu um erro desconhecido durante a operação.';
 };
 
+// State for the free-form Magic Expand tool
+interface ExpandState {
+    container: { width: number; height: number }; // The container for the entire editing area
+    frame: { width: number; height: number; top: number; left: number }; // The resizable artboard/frame
+    image: { width: number; height: number; top: number; left: number }; // The draggable image inside the frame
+}
 
 export const StudioPage: React.FC<StudioPageProps> = ({
     currentUser,
@@ -655,9 +729,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     // Welcome Modal State
     const [showWelcome, setShowWelcome] = useState(false);
     const WELCOME_KEY = 'gx-verse-ai-studio-visited';
-
-    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
-    const exportButtonRef = useRef<HTMLDivElement>(null);
     
     // Global Drag-and-drop state
     const [isDraggingOverApp, setIsDraggingOverApp] = useState(false);
@@ -672,11 +743,17 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     const isDrawingMask = useRef(false);
     
     // MAGIC EXPAND (OUTPAINTING) STATE
-    const [expandTargetRatio, setExpandTargetRatio] = useState<string>('16:9');
-    const [expandImagePos, setExpandImagePos] = useState({ x: 0, y: 0 });
-    const expandDragState = useRef({ isDragging: false, startX: 0, startY: 0, startImgX: 0, startImgY: 0 });
-    const expandFrameRef = useRef<HTMLDivElement>(null);
-    const [displayedImageRect, setDisplayedImageRect] = useState({ width: 0, height: 0, x: 0, y: 0 });
+    const [expandTargetRatio, setExpandTargetRatio] = useState<string>('free');
+    const [expandState, setExpandState] = useState<ExpandState | null>(null);
+    const magicExpandContainerRef = useRef<HTMLDivElement>(null);
+    const dragState = useRef<{
+        type: 'resize' | 'move' | null,
+        handle?: string,
+        startX: number,
+        startY: number,
+        startFrame?: ExpandState['frame'],
+        startImage?: ExpandState['image'],
+    }>({ type: null, startX: 0, startY: 0 });
 
     const imageRef = useRef<HTMLImageElement>(null);
     const location = useLocation();
@@ -741,18 +818,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         }
     }, [location.state]);
 
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (exportButtonRef.current && !exportButtonRef.current.contains(event.target as Node)) {
-                setIsExportDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
 
     const handleCloseWelcome = () => {
         try {
@@ -1118,9 +1183,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
              return;
         }
 
-        const expandFrameRect = isMagicExpandModeActive ? expandFrameRef.current?.getBoundingClientRect() : null;
-        const expandImageRect = isMagicExpandModeActive ? imageRef.current?.getBoundingClientRect() : null;
-        
         setIsLoading(true);
         setVariations([]);
         setOriginalForVariations(null);
@@ -1154,65 +1216,32 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                         maskImageFile = await dataUrlToImageFile(maskDataUrl, 'mask.png');
                     }
                 }
-            } else if (isMagicExpandModeActive) {
-                const [w, h] = expandTargetRatio.split(':').map(Number);
-                const targetAspectRatio = w / h;
-
+            } else if (isMagicExpandModeActive && expandState && imageRef.current) {
                 const originalImage = new Image();
                 originalImage.src = image1Preview!;
                 await new Promise(resolve => { originalImage.onload = resolve; });
-                const originalWidth = originalImage.naturalWidth;
-                const originalHeight = originalImage.naturalHeight;
-                const originalAspectRatio = originalWidth / originalHeight;
-                
-                let newWidth, newHeight;
-                if (targetAspectRatio > originalAspectRatio) {
-                    newHeight = originalHeight;
-                    newWidth = Math.round(originalHeight * targetAspectRatio);
-                } else {
-                    newWidth = originalWidth;
-                    newHeight = Math.round(originalWidth / targetAspectRatio);
-                }
-                
-                const frame = expandFrameRect;
-                const image = expandImageRect;
 
-                if (!frame || !image) {
-                    throw new Error("Não foi possível obter as dimensões do quadro de expansão.");
-                }
+                const scale = originalImage.naturalWidth / expandState.image.width;
 
-                // Convert the on-screen drag position to a scaled position on the final canvas
-                const dragRangeX = frame.width - image.width;
-                const dragRangeY = frame.height - image.height;
+                const finalCanvasWidth = Math.round(expandState.frame.width * scale);
+                const finalCanvasHeight = Math.round(expandState.frame.height * scale);
+                const finalImageX = Math.round((expandState.image.left - expandState.frame.left) * scale);
+                const finalImageY = Math.round((expandState.image.top - expandState.frame.top) * scale);
 
-                const totalTranslateX = (frame.width - image.width) / 2;
-                const currentTranslateX = expandImagePos.x;
-                const ratioX = dragRangeX > 1 ? (currentTranslateX + totalTranslateX) / dragRangeX : 0.5;
-
-                const totalTranslateY = (frame.height - image.height) / 2;
-                const currentTranslateY = expandImagePos.y;
-                const ratioY = dragRangeY > 1 ? (currentTranslateY + totalTranslateY) / dragRangeY : 0.5;
-                
-                const finalDragRangeX = newWidth - originalWidth;
-                const finalDragRangeY = newHeight - originalHeight;
-
-                const imgX = Math.round(finalDragRangeX * ratioX);
-                const imgY = Math.round(finalDragRangeY * ratioY);
-                
                 const imageCanvas = document.createElement('canvas');
-                imageCanvas.width = newWidth;
-                imageCanvas.height = newHeight;
+                imageCanvas.width = finalCanvasWidth;
+                imageCanvas.height = finalCanvasHeight;
                 const imgCtx = imageCanvas.getContext('2d')!;
-                imgCtx.drawImage(originalImage, imgX, imgY);
+                imgCtx.drawImage(originalImage, finalImageX, finalImageY);
 
                 const maskCanvas = document.createElement('canvas');
-                maskCanvas.width = newWidth;
-                maskCanvas.height = newHeight;
+                maskCanvas.width = finalCanvasWidth;
+                maskCanvas.height = finalCanvasHeight;
                 const maskCtx = maskCanvas.getContext('2d')!;
                 maskCtx.fillStyle = 'white';
-                maskCtx.fillRect(0, 0, newWidth, newHeight);
+                maskCtx.fillRect(0, 0, finalCanvasWidth, finalCanvasHeight);
                 maskCtx.fillStyle = 'black';
-                maskCtx.fillRect(imgX, imgY, originalWidth, originalHeight);
+                maskCtx.fillRect(finalImageX, finalImageY, originalImage.naturalWidth, originalImage.naturalHeight);
 
                 imageToSend = await dataUrlToImageFile(imageCanvas.toDataURL('image/png'), 'expand-image.png');
                 maskImageFile = await dataUrlToImageFile(maskCanvas.toDataURL('image/png'), 'expand-mask.png');
@@ -1755,79 +1784,172 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     }, [isMaskingModeActive, image1Preview]);
     
     // MAGIC EXPAND LOGIC
-    const handleExpandMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.button !== 0 || !expandFrameRef.current || !imageRef.current) return;
-        e.preventDefault();
-        
-        const frameRect = expandFrameRef.current.getBoundingClientRect();
-        const imageRect = imageRef.current.getBoundingClientRect();
-
-        expandDragState.current = { isDragging: true, startX: e.clientX, startY: e.clientY, startImgX: expandImagePos.x, startImgY: expandImagePos.y };
-        
-        const handleMove = (ev: MouseEvent) => {
-            if (!expandDragState.current.isDragging) return;
-
-            const dx = ev.clientX - expandDragState.current.startX;
-            const dy = ev.clientY - expandDragState.current.startY;
-            
-            let newX = expandDragState.current.startImgX + dx;
-            let newY = expandDragState.current.startImgY + dy;
-
-            const maxX = (frameRect.width - imageRect.width) / 2;
-            const minX = -maxX;
-            const maxY = (frameRect.height - imageRect.height) / 2;
-            const minY = -maxY;
-
-            newX = Math.max(minX, Math.min(newX, maxX));
-            newY = Math.max(minY, Math.min(newY, maxY));
-            
-            setExpandImagePos({ x: newX, y: newY });
-        };
-        
-        const handleUp = () => {
-            expandDragState.current.isDragging = false;
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleUp);
-        };
-        
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('mouseup', handleUp);
-    }, [expandImagePos]);
-
     useLayoutEffect(() => {
-        const updateRect = () => {
-            if (isMagicExpandModeActive && imageRef.current) {
-                const iRect = imageRef.current.getBoundingClientRect();
-                 setDisplayedImageRect({
-                    width: iRect.width,
-                    height: iRect.height,
-                    x: 0, // Not needed for this visual effect
-                    y: 0
-                });
+        const updateExpandState = () => {
+            if (!isMagicExpandModeActive || !magicExpandContainerRef.current || !imageRef.current || !image1) return;
+
+            const container = magicExpandContainerRef.current.getBoundingClientRect();
+            const naturalWidth = image1.base64.startsWith('data:') 
+                ? imageRef.current.naturalWidth 
+                : parseInt(image1.name.split('_')[1] || '1024', 10); // Fallback for placeholder
+            const naturalHeight = image1.base64.startsWith('data:')
+                ? imageRef.current.naturalHeight
+                : parseInt(image1.name.split('_')[2] || '1024', 10);
+            
+            if (naturalWidth === 0) return;
+
+            const containerAspectRatio = container.width / container.height;
+            const imageAspectRatio = naturalWidth / naturalHeight;
+
+            let imageWidth, imageHeight;
+            if (imageAspectRatio > containerAspectRatio) {
+                imageWidth = container.width;
+                imageHeight = container.width / imageAspectRatio;
+            } else {
+                imageHeight = container.height;
+                imageWidth = container.height * imageAspectRatio;
             }
+
+            setExpandState({
+                container: { width: container.width, height: container.height },
+                frame: { width: imageWidth, height: imageHeight, top: (container.height - imageHeight) / 2, left: (container.width - imageWidth) / 2 },
+                image: { width: imageWidth, height: imageHeight, top: (container.height - imageHeight) / 2, left: (container.width - imageWidth) / 2 }
+            });
         };
         
-        const img = imageRef.current;
-        if (img) {
-            if (img.complete) {
-                updateRect();
-            } else {
-                img.onload = updateRect;
+        if (isMagicExpandModeActive) {
+            const img = imageRef.current;
+            if (img && img.complete) {
+                updateExpandState();
+            } else if (img) {
+                img.onload = updateExpandState;
+            }
+            window.addEventListener('resize', updateExpandState);
+            return () => {
+                window.removeEventListener('resize', updateExpandState);
+                if(img) img.onload = null;
             }
         }
-        
-        window.addEventListener('resize', updateRect);
-        return () => {
-            if(img) img.onload = null;
-            window.removeEventListener('resize', updateRect);
-        };
-    }, [isMagicExpandModeActive, image1Preview]);
-    
-    useEffect(() => {
-        // Reset image position when the aspect ratio changes
-        setExpandImagePos({ x: 0, y: 0 });
-    }, [expandTargetRatio]);
+    }, [isMagicExpandModeActive, image1, image1Preview]);
 
+    const handleExpandInteraction = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const target = e.target as HTMLElement;
+        const handle = target.dataset.handle;
+        if (!handle || !expandState) return;
+
+        dragState.current = {
+            type: 'resize',
+            handle,
+            startX: e.clientX,
+            startY: e.clientY,
+            startFrame: { ...expandState.frame },
+            startImage: { ...expandState.image },
+        };
+        setExpandTargetRatio('free');
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            if (dragState.current.type !== 'resize') return;
+            const dx = moveEvent.clientX - dragState.current.startX;
+            const dy = moveEvent.clientY - dragState.current.startY;
+            let { width, height, top, left } = dragState.current.startFrame!;
+            
+            if (handle.includes('e')) width += dx;
+            if (handle.includes('s')) height += dy;
+            if (handle.includes('w')) { width -= dx; left += dx; }
+            if (handle.includes('n')) { height -= dy; top += dy; }
+            
+            // Min size is image size
+            width = Math.max(width, expandState.image.width);
+            height = Math.max(height, expandState.image.height);
+            // Cannot go beyond container
+            if (left < 0) { width += left; left = 0; }
+            if (top < 0) { height += top; top = 0; }
+            if (left + width > expandState.container.width) width = expandState.container.width - left;
+            if (top + height > expandState.container.height) height = expandState.container.height - top;
+
+            setExpandState(prev => prev ? ({ ...prev, frame: { width, height, top, left } }) : null);
+        };
+
+        const handleMouseUp = () => {
+            dragState.current.type = null;
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleImageDragStart = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!expandState) return;
+
+        dragState.current = {
+            type: 'move',
+            startX: e.clientX,
+            startY: e.clientY,
+            startImage: { ...expandState.image }
+        };
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            if (dragState.current.type !== 'move') return;
+            const dx = moveEvent.clientX - dragState.current.startX;
+            const dy = moveEvent.clientY - dragState.current.startY;
+            let { top, left } = dragState.current.startImage!;
+
+            top += dy;
+            left += dx;
+
+            // Constrain image within frame
+            top = Math.max(top, expandState.frame.top);
+            left = Math.max(left, expandState.frame.left);
+            if (top + expandState.image.height > expandState.frame.top + expandState.frame.height) {
+                top = expandState.frame.top + expandState.frame.height - expandState.image.height;
+            }
+            if (left + expandState.image.width > expandState.frame.left + expandState.frame.width) {
+                left = expandState.frame.left + expandState.frame.width - expandState.image.width;
+            }
+            setExpandState(prev => prev ? { ...prev, image: { ...prev.image, top, left } } : null);
+        };
+
+        const handleMouseUp = () => {
+            dragState.current.type = null;
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleExpandRatioPreset = (ratioStr: string) => {
+        setExpandTargetRatio(ratioStr);
+        if (!expandState || !image1) return;
+
+        const [w, h] = ratioStr.split(':').map(Number);
+        const ratio = w / h;
+
+        let frameWidth, frameHeight;
+        const imageAspectRatio = expandState.image.width / expandState.image.height;
+
+        if (ratio > imageAspectRatio) { // New frame is wider
+            frameWidth = Math.min(expandState.container.width, expandState.image.height * ratio);
+            frameHeight = frameWidth / ratio;
+        } else { // New frame is taller
+            frameHeight = Math.min(expandState.container.height, expandState.image.width / ratio);
+            frameWidth = frameHeight * ratio;
+        }
+
+        const frameTop = (expandState.container.height - frameHeight) / 2;
+        const frameLeft = (expandState.container.width - frameWidth) / 2;
+        const imageTop = (expandState.container.height - expandState.image.height) / 2;
+        const imageLeft = (expandState.container.width - expandState.image.width) / 2;
+
+        setExpandState(prev => prev ? {
+            ...prev,
+            frame: { width: frameWidth, height: frameHeight, top: frameTop, left: frameLeft },
+            image: { ...prev.image, top: imageTop, left: imageLeft }
+        } : null);
+    };
 
     const renderCreateFunctions = () => (
         <CollapsibleSection title="Estilo de Criação" defaultOpen={true}>
@@ -1872,10 +1994,11 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             </div>
             {isMagicExpandModeActive && (
                  <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Expandir Para Proporção</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Proporção da Tela</label>
                     <div className="flex space-x-2">
-                         {aspectRatios.map(ratio => (
-                            <button key={ratio.id} onClick={() => setExpandTargetRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${expandTargetRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
+                        <button onClick={() => setExpandTargetRatio('free')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${expandTargetRatio === 'free' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Livre</button>
+                         {[...aspectRatios].map(ratio => (
+                            <button key={ratio.id} onClick={() => handleExpandRatioPreset(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${expandTargetRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
                         ))}
                     </div>
                 </div>
@@ -2024,378 +2147,425 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 <header className="flex justify-between items-center pb-4 pt-2 border-b border-gray-700/50">
                     <div>
                         <h1 className="font-extrabold text-3xl tracking-tight bg-gradient-to-br from-fuchsia-500 to-purple-600 bg-clip-text text-transparent">GX VERSE</h1>
-                        <p className="text-sm font-semibold text-gray-400 tracking-widest">AI STUDIO</p>
+                        <p className="text-sm font-semibold text-gray-400 tracking-widest -mt-1">AI STUDIO</p>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-300 hidden sm:inline">Olá, {currentUser.name}</span>
-                         <button onClick={() => navigate('/profile')} title="Ver Perfil" className="p-2.5 rounded-full bg-gray-800/80 hover:bg-gray-700/80 transition-colors">
-                            <Icon name="user" className="w-5 h-5" />
+                        <button onClick={() => navigate('/profile')} title="Ver Perfil" className="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                            <Icon name="user" className="w-6 h-6 text-gray-300"/>
                         </button>
-                        <button onClick={onLogout} title="Sair" className="p-2.5 rounded-full bg-gray-800/80 hover:bg-gray-700/80 transition-colors">
-                            <Icon name="logout" className="w-5 h-5" />
+                        <button onClick={onLogout} title="Sair" className="p-2 rounded-full hover:bg-gray-800 transition-colors">
+                            <Icon name="logout" className="w-6 h-6 text-gray-300"/>
                         </button>
                     </div>
                 </header>
+
+                <div className="flex bg-gray-800/80 p-1 rounded-lg">
+                    <button ref={editTabRef} onClick={() => navigate('/')} className={`flex-1 text-center font-semibold py-2 rounded-md transition-colors text-sm ${mode === Mode.Create ? 'bg-fuchsia-500/80 text-white shadow' : 'text-gray-300 hover:bg-gray-700/60'}`}>Criar</button>
+                    <button ref={enhanceTabRef} onClick={() => navigate('/edit')} className={`flex-1 text-center font-semibold py-2 rounded-md transition-colors text-sm ${mode === Mode.Edit ? 'bg-fuchsia-500/80 text-white shadow' : 'text-gray-300 hover:bg-gray-700/60'}`}>Editar</button>
+                    <button onClick={() => navigate('/enhance')} className={`flex-1 text-center font-semibold py-2 rounded-md transition-colors text-sm ${mode === Mode.Enhance ? 'bg-fuchsia-500/80 text-white shadow' : 'text-gray-300 hover:bg-gray-700/60'}`}>Melhorar</button>
+                </div>
                 
-                <div className="flex-grow overflow-y-auto pr-2 -mr-4 space-y-4">
+                <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-4">
+                    {mode === Mode.Create && renderCreateFunctions()}
+                    {mode === Mode.Edit && renderEditFunctions()}
+                    {mode === Mode.Enhance && renderEnhanceFunctions()}
 
-                    <div className="flex bg-gray-800/70 p-1 rounded-lg">
-                        <button onClick={() => navigate('/')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Create ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="sparkles" className="w-4 h-4"/><span>Criar</span></button>
-                        <button ref={editTabRef} onClick={() => navigate('/edit')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Edit ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="magic" className="w-4 h-4"/><span>Editar</span></button>
-                        <button ref={enhanceTabRef} onClick={() => navigate('/enhance')} className={`flex-1 p-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center space-x-2 ${mode === Mode.Enhance ? 'bg-purple-500 text-white shadow' : 'hover:bg-gray-700/50'}`}><Icon name="sparkles" className="w-4 h-4"/><span>Melhorar</span></button>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Tooltip
-                            title="Descreva sua Visão"
-                            description="Seja detalhado! Mencione o assunto, o ambiente, o estilo (ex: 'pintura a óleo', 'foto realista'), a iluminação e as cores para obter os melhores resultados."
-                            example="Um gato astronauta flutuando no espaço, estilo cyberpunk, com nebulosas de neon ao fundo."
-                        >
-                             <label htmlFor="prompt" className="text-sm font-medium text-gray-300 flex items-center cursor-help">
-                                {mode === Mode.Enhance ? 'Instrução Adicional' : activeEditFunc === EditFunction.MagicExpand ? 'Descreva a Expansão (Opcional)' : 'Prompt Principal'}
-                                <Icon name="info-circle" className="w-4 h-4 ml-1.5 text-gray-500" />
-                            </label>
-                        </Tooltip>
-                        <div className="relative">
-                           <textarea id="prompt" rows={6} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                            className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2.5 text-sm placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors pr-10"
-                            placeholder={
-                               mode === Mode.Create ? 'Ex: um astronauta surfando em uma onda cósmica' : 
-                               mode === Mode.Edit && activeEditFunc === EditFunction.MagicExpand ? 'Ex: um céu estrelado com uma nebulosa' :
-                               mode === Mode.Edit ? 'Ex: adicione um chapéu de mago no gato' :
-                               'Ex: deixe as cores mais vibrantes (opcional)'
-                            }/>
-                            {mode === Mode.Create &&
-                                <Tooltip
-                                    title="Melhorar Prompt"
-                                    description="Não sabe como descrever? Deixe a IA refinar e detalhar seu prompt para resultados mais ricos e criativos."
-                                >
-                                  <button
+                    <CollapsibleSection title="Entrada de Texto" defaultOpen={true}>
+                         <div className="space-y-4">
+                            <div className="relative">
+                                <textarea
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    placeholder={
+                                        mode === Mode.Create ? "Descreva o que você quer criar..." :
+                                        mode === Mode.Edit ? "Descreva a edição desejada..." :
+                                        "Descreva a melhoria (opcional)..."
+                                    }
+                                    className="w-full h-28 bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors resize-none"
+                                />
+                                <button
                                     onClick={handleEnhancePrompt}
                                     disabled={isEnhancingPrompt}
-                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-800 hover:bg-fuchsia-900 text-fuchsia-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
-                                  >
+                                    title="Melhorar prompt com IA"
+                                    className="absolute bottom-2 right-2 flex items-center space-x-1.5 bg-gray-800/80 text-fuchsia-300 hover:bg-gray-700/80 text-xs font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50"
+                                >
                                     {isEnhancingPrompt ? (
-                                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                     ) : (
-                                      <Icon name="sparkles" className="w-4 h-4" />
+                                        <Icon name="sparkles" className="w-4 h-4" />
                                     )}
-                                  </button>
-                                </Tooltip>
-                            }
-                        </div>
-                    </div>
-                    
-                    {mode === Mode.Create && activeCreateFunc !== CreateFunction.Video ? (
-                        renderReferenceImages()
-                    ) : null}
+                                    <span>Melhorar</span>
+                                </button>
+                            </div>
 
-                    {mode === Mode.Create ? renderCreateFunctions() : 
-                     mode === Mode.Edit ? renderEditFunctions() :
-                     renderEnhanceFunctions()}
-
-                    {mode === Mode.Create && activeCreateFunc === CreateFunction.Video && (
-                        <div className="space-y-2 p-3 bg-gray-900/50 rounded-lg">
-                            <label className="text-sm font-medium text-gray-300">
-                                Imagem de Referência <span className="text-xs text-gray-500">(Opcional)</span>
-                            </label>
-                            {videoReferencePreview && videoReferenceImage ? (
-                                <div className="flex items-center justify-between p-2 bg-gray-800 rounded-md animate-fade-in">
-                                    <div className="flex items-center space-x-2 overflow-hidden">
-                                        <img src={videoReferencePreview} alt="Video Reference Thumbnail" className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
-                                        <span className="text-xs text-gray-300 truncate">{videoReferenceImage.name}</span>
-                                    </div>
-                                    <button onClick={handleRemoveVideoReferenceImage} className="p-1 rounded-full hover:bg-red-500/80 text-gray-400 hover:text-white transition-colors flex-shrink-0 ml-2">
-                                        <Icon name="close" className="w-4 h-4" />
-                                    </button>
+                            {mode === Mode.Create && (
+                                <div>
+                                    <textarea
+                                        value={negativePrompt}
+                                        onChange={(e) => setNegativePrompt(e.target.value)}
+                                        placeholder="Prompt Negativo: elementos a evitar (ex: texto, má qualidade, mãos deformadas)"
+                                        className="w-full h-20 bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-sm placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors resize-none"
+                                    />
                                 </div>
-                            ) : (
-                                <UploadArea id="videoRef" onImageSelect={(file) => handleSelectFile(file, setVideoReferenceImage, setVideoReferencePreview, 'videoRef')} previewUrl={videoReferencePreview} title="Selecionar Imagem" isUploading={isUploading['videoRef']} isDual/>
                             )}
-                        </div>
+                         </div>
+                    </CollapsibleSection>
+                    
+                    {mode === Mode.Create && (
+                        (activeCreateFunc === CreateFunction.Video)
+                            ? (
+                                <CollapsibleSection title="Imagem de Referência (Opcional)" defaultOpen={false}>
+                                    {videoReferencePreview ? (
+                                        <div className="relative group">
+                                            <img src={videoReferencePreview} alt="Video reference preview" className="rounded-lg w-full" />
+                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                <button onClick={handleRemoveVideoReferenceImage} className="p-2 rounded-full bg-black/50 hover:bg-red-500/80 transition-colors">
+                                                    <Icon name="close" className="w-6 h-6 text-white" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <UploadArea 
+                                            id="video-ref-upload"
+                                            onImageSelect={(file) => handleSelectFile(file, setVideoReferenceImage, setVideoReferencePreview, 'videoRef')}
+                                            previewUrl={null}
+                                            title="Enviar Imagem de Referência"
+                                            isUploading={isUploading['videoRef']}
+                                        />
+                                    )}
+                                </CollapsibleSection>
+                            )
+                            : (
+                                 <CollapsibleSection title="Estilo de Referência (Opcional)" defaultOpen={false}>
+                                    {renderReferenceImages()}
+                                 </CollapsibleSection>
+                            )
                     )}
 
                     {mode === Mode.Edit && (
-                        <div className="space-y-4">
-                            <UploadArea id="edit1" onImageSelect={(file) => handleSelectFile(file, setImage1, setImage1Preview, 'edit1')} previewUrl={image1Preview} title="Enviar Imagem" isUploading={isUploading['edit1']} />
-                            {isComposeMode && (
-                                <UploadArea id="edit2" onImageSelect={(file) => handleSelectFile(file, setImage2, setImage2Preview, 'edit2')} previewUrl={image2Preview} title="Enviar Imagem 2" isUploading={isUploading['edit2']} isDual />
-                            )}
-                        </div>
-                    )}
-                    
-                    {mode === Mode.Enhance && (
-                        <div className="space-y-4">
-                            <UploadArea id="enhance" onImageSelect={(file) => handleSelectFile(file, setEnhanceImage, setEnhanceImagePreview, 'enhance')} previewUrl={enhanceImagePreview} title="Enviar Imagem para Melhorar" isUploading={isUploading['enhance']} />
-                        </div>
-                    )}
-                    
-                    {generatedImage && mode !== Mode.Create && renderAdjustmentsPanel()}
-
-                    {mode === Mode.Create && (
-                        <CollapsibleSection title="Opções Avançadas">
-                            {activeCreateFunc !== CreateFunction.Video && (
-                                <div className="space-y-2">
-                                    <label htmlFor="negative-prompt" className="text-sm font-medium text-gray-300">Prompt Negativo</label>
-                                    <input id="negative-prompt" type="text" value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)}
-                                        className="w-full bg-gray-900/70 border border-gray-700/80 rounded-lg p-2 text-sm placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors"
-                                        placeholder="Ex: texto, marca d'água, deformado"/>
-                                </div>
-                            )}
+                         <CollapsibleSection title="Imagens de Entrada" defaultOpen={true}>
+                            <div className={`grid ${isComposeMode ? 'grid-cols-2 gap-2' : 'grid-cols-1'}`}>
+                                <UploadArea 
+                                    id="upload1" 
+                                    onImageSelect={(file) => handleSelectFile(file, setImage1, setImage1Preview, 'edit1')} 
+                                    previewUrl={image1Preview}
+                                    title={isComposeMode ? "Imagem Base" : "Carregar Imagem"}
+                                    isDual={isComposeMode}
+                                    isUploading={isUploading['edit1']}
+                                />
+                                {isComposeMode && (
+                                    <UploadArea 
+                                        id="upload2" 
+                                        onImageSelect={(file) => handleSelectFile(file, setImage2, setImage2Preview, 'edit2')} 
+                                        previewUrl={image2Preview}
+                                        title="Imagem para Unir"
+                                        isDual={isComposeMode}
+                                        isUploading={isUploading['edit2']}
+                                    />
+                                )}
+                            </div>
                         </CollapsibleSection>
                     )}
 
-                    <div className="py-2">
-                        <HistoryPanel history={history} onHistoryClick={handleSidebarHistoryClick} onClearHistory={onClearHistory} />
-                    </div>
-
-                </div>
-                 <div className="pt-2 flex-shrink-0">
-                    {mode === Mode.Create && (
-                        <button onClick={activeCreateFunc === CreateFunction.Video ? () => handleGenerateVideo(videoMotionLevel) : handleGenerate} disabled={isLoading} className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:cursor-not-allowed">
-                            {isLoading ? 'Gerando...' : 'GERAR'}
-                        </button>
-                    )}
-                     {mode === Mode.Edit && (
-                        <button onClick={handleApplyEdit} disabled={isLoading} className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:cursor-not-allowed">
-                             {isLoading ? 'Processando...' : activeEditFunc === EditFunction.MagicExpand ? 'APLICAR EXPANSÃO' : 'APLICAR EDIÇÃO'}
-                        </button>
-                    )}
-                     {mode === Mode.Enhance && (
-                        <button onClick={handleApplyEnhancement} disabled={isLoading} className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:cursor-not-allowed">
-                             {isLoading ? 'Melhorando...' : 'APLICAR MELHORIA'}
-                        </button>
-                    )}
-                </div>
-            </aside>
-
-            {/* Right Panel (Main Content) */}
-            <main className="flex-1 flex flex-col p-4 bg-black/30">
-                <div className="flex-1 flex items-center justify-center relative bg-grid-pattern rounded-lg min-h-[300px] transition-all duration-300">
-                    {isLoading && progress !== null && <ProgressBar progress={progress} message={progressMessage} etr={progressEtr} />}
-                    
-                    {!isLoading && generatedImage && beforeImage && (
-                        <div className="w-full h-full p-4 animate-fade-in-up">
-                            <BeforeAfterSlider before={beforeImage} after={generatedImage} />
-                        </div>
-                    )}
-                    
-                    {!isLoading && generatedImage && !beforeImage && !videoBlobUrl && !isMaskingModeActive && !isMagicExpandModeActive && (
-                         <div className="w-full h-full flex flex-col items-center justify-center p-4 animate-fade-in-up">
-                            <div className="relative flex-grow w-full flex items-center justify-center">
-                                <div className="relative p-1 bg-gray-900/50 border border-gray-800/50 rounded-xl max-w-full max-h-full">
-                                    <img
-                                        ref={mainImageRef}
-                                        src={generatedImage}
-                                        alt="Generated art"
-                                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50"
-                                        style={{ filter: filterCss }}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-shrink-0 flex items-center space-x-2 mt-4 p-2 bg-gray-900/60 backdrop-blur-sm border border-gray-800/50 rounded-lg">
-                                <button onClick={() => setIsFocusViewOpen(true)} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
-                                    <Icon name="expand" className="w-4 h-4"/>
-                                    <span>Visualizar</span>
-                                </button>
-                                <div className="w-px h-6 bg-gray-700"></div>
-                                <button onClick={() => handleAnimatedSend('edit')} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
-                                    <Icon name="magic" className="w-4 h-4 text-fuchsia-400"/>
-                                    <span>Editar</span>
-                                </button>
-                                <button onClick={() => handleAnimatedSend('enhance')} className="flex items-center space-x-2 py-2 px-4 rounded-md hover:bg-gray-800/80 transition-colors font-medium text-sm">
-                                    <Icon name="sparkles" className="w-4 h-4 text-fuchsia-400"/>
-                                    <span>Melhorar</span>
-                                </button>
-                                <div className="w-px h-6 bg-gray-700"></div>
-                                <div className="relative" ref={exportButtonRef}>
-                                    <button
-                                        onClick={() => setIsExportDropdownOpen(prev => !prev)}
-                                        title="Baixar Imagem"
-                                        className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition-colors transform active:scale-95 shadow-lg"
-                                    >
-                                        <Icon name="download" className="w-5 h-5" />
-                                        <span>Baixar</span>
-                                        <Icon name="chevron-down" className={`w-4 h-4 transition-transform ${isExportDropdownOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    {isExportDropdownOpen && (
-                                        <div className="absolute bottom-full mb-2 right-0 w-48 bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-lg shadow-xl overflow-hidden animate-fade-in-up z-10">
-                                            <ul className="py-1">
-                                                <li>
-                                                    <button onClick={() => { handleExport('jpeg', 92); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
-                                                        <span>Baixar como JPEG</span>
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button onClick={() => { handleExport('png', 100); setIsExportDropdownOpen(false); }} className="w-full text-left flex items-center space-x-3 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/80 transition-colors">
-                                                        <span>Baixar como PNG</span>
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {!isLoading && videoBlobUrl && (
-                        <video src={videoBlobUrl} controls autoPlay loop className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50 animate-fade-in-up" />
-                    )}
-                    
-                    {!isLoading && isMagicExpandModeActive && (
-                        <div className="w-full h-full p-4 flex items-center justify-center bg-checkerboard rounded-lg">
-                            <div
-                                ref={expandFrameRef}
-                                className="relative border-2 border-dashed border-fuchsia-500/50 rounded-lg overflow-hidden flex items-center justify-center"
-                                style={{ aspectRatio: expandTargetRatio.replace(':', '/') }}
-                            >
-                                <img
-                                    ref={imageRef}
-                                    src={image1Preview!}
-                                    alt="Image to expand"
-                                    className="absolute max-w-full max-h-full cursor-move shadow-2xl shadow-black/80"
-                                    style={{ 
-                                        left: '50%',
-                                        top: '50%',
-                                        transform: `translate(calc(-50% + ${expandImagePos.x}px), calc(-50% + ${expandImagePos.y}px))`,
-                                    }}
-                                    onMouseDown={handleExpandMouseDown}
-                                    draggable={false}
-                                />
-                                <div className="absolute inset-0 pointer-events-none" style={{
-                                    boxShadow: 'inset 0 0 0 2000px rgba(0, 0, 0, 0.5)',
-                                    left: `calc(50% + ${expandImagePos.x}px)`,
-                                    top: `calc(50% + ${expandImagePos.y}px)`,
-                                    width: `${displayedImageRect.width}px`,
-                                    height: `${displayedImageRect.height}px`,
-                                    transform: `translate(-50%, -50%)`,
-                                }} />
-                            </div>
-                        </div>
-                    )}
-
-                    {!isLoading && isMaskingModeActive && (
-                        <div className="relative w-full h-full flex items-center justify-center">
-                            <img ref={imageRef} src={image1Preview!} alt="Editing mask" className="max-w-full max-h-full object-contain pointer-events-none" onLoad={() => { /* trigger canvas resize */ }} />
-                            <canvas
-                                ref={maskCanvasRef}
-                                className="absolute top-0 left-0 w-full h-full cursor-crosshair"
-                                onMouseDown={handleMaskMouseDown}
-                                onMouseMove={handleMaskMouseMove}
-                                onMouseUp={handleMaskMouseUp}
-                                onMouseLeave={handleMaskMouseUp}
+                    {mode === Mode.Enhance && (
+                         <CollapsibleSection title="Imagem de Entrada" defaultOpen={true}>
+                            <UploadArea 
+                                id="upload-enhance" 
+                                onImageSelect={(file) => handleSelectFile(file, setEnhanceImage, setEnhanceImagePreview, 'enhance')} 
+                                previewUrl={enhanceImagePreview}
+                                title="Carregar Imagem"
+                                isUploading={isUploading['enhance']}
                             />
-                            <canvas
-                                ref={lassoPreviewCanvasRef}
-                                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                            />
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md p-2 rounded-lg border border-gray-700/50 flex items-center space-x-3 shadow-lg">
-                                <button onClick={() => setActiveMaskTool('brush')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'brush' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Pincel">
-                                    <Icon name="brush" className="w-5 h-5"/>
-                                </button>
-                                <button onClick={() => setActiveMaskTool('eraser')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'eraser' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Borracha">
-                                    <Icon name="eraser" className="w-5 h-5"/>
-                                </button>
-                                <button onClick={() => setActiveMaskTool('lasso')} className={`p-2 rounded-md transition-colors ${activeMaskTool === 'lasso' ? 'bg-fuchsia-600' : 'hover:bg-gray-700'}`} title="Laço">
-                                    <Icon name="lasso" className="w-5 h-5"/>
-                                </button>
-                                {(activeMaskTool === 'brush' || activeMaskTool === 'eraser') && (
-                                    <div className="flex items-center space-x-2">
-                                        <input type="range" min="5" max="150" value={maskBrushSize} onChange={e => setMaskBrushSize(Number(e.target.value))} className="w-32" />
-                                    </div>
-                                )}
-                                <button onClick={clearMaskCanvas} className="p-2 rounded-md hover:bg-gray-700 transition-colors" title="Limpar Máscara">
-                                    <Icon name="reset" className="w-5 h-5"/>
-                                </button>
-                            </div>
-                        </div>
+                        </CollapsibleSection>
                     )}
-                    
-                    {!isLoading && !generatedImage && !videoBlobUrl && !isMaskingModeActive && !isMagicExpandModeActive && (
-                         <div className="w-full h-full text-center text-gray-500 flex flex-col items-center justify-center p-4">
-                            {mode === Mode.Edit && image1Preview ? (
-                                <img src={image1Preview} alt="Image to edit" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50" />
-                            ) : mode === Mode.Enhance && enhanceImagePreview ? (
-                                <img src={enhanceImagePreview} alt="Image to enhance" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl shadow-black/50" />
-                            ) : mode === Mode.Create ? (
-                                <div className="w-full max-w-4xl animate-fade-in-up">
-                                    <Icon name="sparkles" className="w-16 h-16 mx-auto text-fuchsia-500/60" />
-                                    <h2 className="mt-4 text-2xl font-bold text-white">Vamos transformar sua ideia em realidade?</h2>
-                                    <p className="text-gray-400 mb-8">Comece com um prompt ou clique em uma das inspirações abaixo.</p>
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                        {inspirations.map((item, index) => (
-                                            <div
-                                                key={index}
-                                                className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group transition-transform duration-300 ease-in-out hover:scale-105"
-                                                onClick={() => {
-                                                    setPrompt(item.prompt);
-                                                    setToastSuccess("Prompt copiado!");
-                                                }}
-                                                title="Clique para usar este prompt"
-                                            >
-                                                <img src={item.imageUrl} alt={item.prompt} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
-                                                    <p className="text-white text-sm font-medium leading-tight line-clamp-3 group-hover:underline">{item.prompt}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <Icon name="image" className="w-24 h-24 mx-auto text-gray-700/50" />
-                                    <p className="mt-4 font-semibold">
-                                        {
-                                            mode === Mode.Edit ? "Envie uma imagem para editar" :
-                                            mode === Mode.Enhance ? "Envie uma imagem para melhorar" :
-                                            "Sua arte aparecerá aqui"
-                                        }
-                                    </p>
-                                    <p className="text-sm">
-                                        {
-                                            mode === Mode.Edit || mode === Mode.Enhance ? "Use a área de upload na barra lateral" :
-                                            "Ajuste as configurações e clique em \"Gerar\""
-                                        }
-                                    </p>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    
-                    {generatedImage && !isLoading && (
-                        <>
-                            <div className="absolute top-2 right-2 flex items-center space-x-1 bg-black/50 backdrop-blur-md p-1 rounded-lg border border-gray-700/50">
-                                <button onClick={handleUndo} disabled={currentHistoryIndex === 0} title="Desfazer" className="p-1.5 rounded-md hover:bg-gray-800 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"><Icon name="undo" className="w-5 h-5"/></button>
-                                <button onClick={handleRedo} disabled={currentHistoryIndex === editHistory.length - 1} title="Refazer" className="p-1.5 rounded-md hover:bg-gray-800 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"><Icon name="redo" className="w-5 h-5"/></button>
-                            </div>
-                        </>
-                    )}
+
+                    {renderAdjustmentsPanel()}
+
+                    <HistoryPanel history={history} onHistoryClick={handleSidebarHistoryClick} onClearHistory={onClearHistory} />
                 </div>
                 
-                 {/* Variations Display */}
-                {variations.length > 0 && !isLoading && (
-                    <div className="mt-4 p-4 bg-gray-900/50 rounded-lg animate-fade-in-up">
-                        <h3 className="text-sm font-semibold text-gray-300 mb-2">Variações Geradas</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                           {[originalForVariations, ...variations].slice(0, 5).map((img, index) => (
-                                <div key={index} className="aspect-square rounded-md overflow-hidden group relative cursor-pointer" onClick={() => handleSelectVariation(img!)} title="Clique para selecionar esta variação">
-                                    <img src={img!} alt={`Variation ${index}`} className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110" />
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center p-2">
+                {mode === Mode.Create && (
+                    activeCreateFunc === CreateFunction.Video ? (
+                        <div className="pt-4 mt-auto border-t border-gray-700/50">
+                            <button
+                                onClick={() => handleGenerateVideo(videoMotionLevel)}
+                                disabled={isLoading || !prompt.trim()}
+                                className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-lg flex items-center justify-center space-x-3"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>GERANDO VÍDEO...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icon name="video" className="w-6 h-6"/>
+                                        <span>GERAR VÍDEO</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="pt-4 mt-auto border-t border-gray-700/50">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isLoading || !prompt.trim()}
+                                className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-lg flex items-center justify-center space-x-3"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>GERANDO...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Icon name="sparkles" className="w-6 h-6"/>
+                                        <span>GERAR</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )
+                )}
+
+                {mode === Mode.Edit && (
+                    <div className="pt-4 mt-auto border-t border-gray-700/50">
+                         <button
+                            onClick={handleApplyEdit}
+                            disabled={isLoading || !image1 || (isComposeMode && !image2) || (activeEditFunc !== EditFunction.MagicExpand && !prompt.trim())}
+                            className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-lg flex items-center justify-center space-x-3"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span>APLICANDO...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="magic" className="w-6 h-6"/>
+                                    <span>APLICAR EDIÇÃO</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+                
+                 {mode === Mode.Enhance && (
+                    <div className="pt-4 mt-auto border-t border-gray-700/50">
+                         <button
+                            onClick={handleApplyEnhancement}
+                            disabled={isLoading || !enhanceImage}
+                            className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed text-lg flex items-center justify-center space-x-3"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span>APLICANDO...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="sparkles" className="w-6 h-6"/>
+                                    <span>APLICAR MELHORIA</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+
+
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-grow bg-black/30 flex flex-col items-center justify-center relative overflow-hidden">
+                {isLoading && progress !== null && <ProgressBar progress={progress} message={progressMessage} etr={progressEtr}/>}
+                
+                {isGeneratingVariations && !isLoading && (
+                    <div className="w-full h-full flex flex-col items-center justify-center animate-fade-in p-8">
+                        <h2 className="text-2xl font-bold mb-4">Selecione sua Variação Favorita</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-grow w-full max-w-5xl">
+                            {[originalForVariations, ...variations].slice(0, 4).map((img, index) => (
+                                img && (
+                                <div key={index} className="relative group rounded-lg overflow-hidden bg-gray-900/50 flex items-center justify-center">
+                                    <img src={img} alt={`Variação ${index}`} className="w-full h-full object-contain" />
+                                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center space-y-3 p-4">
                                         {index === 0 ? (
-                                            <p className="text-xs font-bold text-white bg-black/50 px-2 py-1 rounded-full">Original</p>
+                                             <p className="font-bold text-lg bg-black/50 px-3 py-1 rounded-full">Original</p>
                                         ) : (
                                             <>
-                                                <button onClick={(e) => { e.stopPropagation(); handleSelectVariation(img!); }} className="text-xs font-semibold text-white bg-fuchsia-600/80 px-3 py-1.5 rounded-full hover:bg-fuchsia-500/80 transition-colors mb-2">Usar esta</button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleViewVariationDetails(img!); }} className="text-xs font-semibold text-white bg-gray-700/80 px-3 py-1.5 rounded-full hover:bg-gray-600/80 transition-colors">Detalhes</button>
+                                                <button onClick={() => handleSelectVariation(img)} className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">Usar esta</button>
+                                                <button onClick={() => handleViewVariationDetails(img)} className="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">Ver Detalhes</button>
                                             </>
                                         )}
+                                    </div>
+                                </div>
+                                )
+                            ))}
+                        </div>
+                         <button onClick={() => { setVariations([]); setOriginalForVariations(null); }} className="mt-4 bg-gray-800 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors">Voltar</button>
+                    </div>
+                )}
+
+                {generatedImage && !beforeImage && !isLoading && !isGeneratingVariations && (
+                    <div className="w-full h-full flex flex-col items-center justify-center animate-fade-in p-8">
+                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
+                            <div className="relative w-full h-full max-w-5xl max-h-[80vh] group">
+                                <img
+                                    ref={mainImageRef}
+                                    src={editHistory[currentHistoryIndex]?.image || generatedImage}
+                                    alt="Arte gerada por IA"
+                                    className="w-full h-full object-contain"
+                                    style={{ filter: filterCss }}
+                                />
+                                <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={handleUndo} disabled={currentHistoryIndex === 0} title="Desfazer" className="p-2 rounded-full bg-black/50 hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                                        <Icon name="undo" className="w-5 h-5"/>
+                                    </button>
+                                    <button onClick={handleRedo} disabled={currentHistoryIndex >= editHistory.length - 1} title="Refazer" className="p-2 rounded-full bg-black/50 hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                                        <Icon name="redo" className="w-5 h-5"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <ImageActionsToolbar
+                          onViewDetails={() => setIsFocusViewOpen(true)}
+                          onSendToEdit={() => handleAnimatedSend('edit')}
+                          onSendToEnhance={() => handleAnimatedSend('enhance')}
+                          onExport={handleExport}
+                        />
+                    </div>
+                )}
+                
+                {generatedImage && beforeImage && !isLoading && !isGeneratingVariations && (
+                    <div className="w-full h-full flex flex-col items-center justify-center animate-fade-in p-8">
+                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
+                           <div className="relative w-full h-full max-w-5xl max-h-[80vh]">
+                              <BeforeAfterSlider before={beforeImage} after={generatedImage} />
+                           </div>
+                        </div>
+                        <ImageActionsToolbar
+                          onViewDetails={() => setIsFocusViewOpen(true)}
+                          onSendToEdit={() => handleAnimatedSend('edit')}
+                          onSendToEnhance={() => handleAnimatedSend('enhance')}
+                          onExport={handleExport}
+                        />
+                    </div>
+                )}
+
+                {videoBlobUrl && !isLoading && (
+                    <div className="w-full h-full flex flex-col items-center justify-center animate-fade-in p-8">
+                        <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                            <video src={videoBlobUrl} controls autoPlay loop className="w-full h-full max-w-5xl max-h-[80vh] object-contain rounded-lg" />
+                        </div>
+                        <div className="mt-4">
+                            <a href={videoBlobUrl} download={`video-ia-${Date.now()}.mp4`} className="flex items-center space-x-2 bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
+                                <Icon name="download" className="w-5 h-5"/>
+                                <span>Baixar Vídeo</span>
+                            </a>
+                        </div>
+                    </div>
+                )}
+                
+                {!generatedImage && !isLoading && !isGeneratingVariations && mode === Mode.Create && (
+                    <div className="text-center text-gray-500 flex flex-col items-center p-4">
+                        <Icon name="sparkles" className="w-16 h-16 mb-4"/>
+                        <h2 className="text-2xl font-bold text-gray-300">Comece a Criar</h2>
+                        <p className="max-w-md mt-2">Use o painel à esquerda para descrever sua visão, ajustar estilos e dar vida às suas ideias.</p>
+                        <div className="grid grid-cols-2 gap-4 mt-8 w-full max-w-xl">
+                            {inspirations.map((item, index) => (
+                                <div key={index} onClick={() => setPrompt(item.prompt)} className="group relative rounded-lg overflow-hidden cursor-pointer h-24 bg-cover bg-center" style={{backgroundImage: `url('${item.imageUrl}')`}}>
+                                    <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-all duration-300 flex items-end p-2">
+                                        <p className="text-white text-xs font-semibold line-clamp-2">{item.prompt}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
+
+                {isMaskingModeActive && (
+                    <div className="w-full h-full flex flex-col items-center justify-center animate-fade-in p-8">
+                         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-gray-900/80 backdrop-blur-md p-2 rounded-lg border border-gray-700/50 flex items-center space-x-2 z-20">
+                            {['brush', 'eraser', 'lasso'].map(tool => (
+                                <button key={tool} onClick={() => setActiveMaskTool(tool as any)} className={`p-2 rounded-md transition-colors ${activeMaskTool === tool ? 'bg-fuchsia-500 text-white' : 'hover:bg-gray-700'}`}>
+                                    <Icon name={tool} className="w-5 h-5"/>
+                                </button>
+                            ))}
+                            <div className="w-px h-6 bg-gray-700 mx-1"></div>
+                            { (activeMaskTool === 'brush' || activeMaskTool === 'eraser') &&
+                                <div className="flex items-center space-x-2 px-2">
+                                     <label className="text-xs">Tamanho:</label>
+                                     <input type="range" min="5" max="150" value={maskBrushSize} onChange={e => setMaskBrushSize(Number(e.target.value))} className="w-24" />
+                                </div>
+                            }
+                            <button onClick={clearMaskCanvas} title="Limpar máscara" className="p-2 rounded-md hover:bg-gray-700 text-red-400">
+                               <Icon name="reset" className="w-5 h-5"/>
+                            </button>
+                        </div>
+
+                        <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
+                            <div className="relative inline-block max-w-5xl max-h-[80vh]">
+                                <img ref={imageRef} src={image1Preview!} alt="Para edição com máscara" className="max-w-full max-h-full object-contain pointer-events-none select-none block" />
+                                <canvas
+                                    ref={maskCanvasRef}
+                                    className="absolute inset-0 w-full h-full cursor-crosshair opacity-70"
+                                    onMouseDown={handleMaskMouseDown}
+                                    onMouseMove={handleMaskMouseMove}
+                                    onMouseUp={handleMaskMouseUp}
+                                    onMouseLeave={handleMaskMouseUp}
+                                />
+                                 <canvas
+                                    ref={lassoPreviewCanvasRef}
+                                    className="absolute inset-0 w-full h-full pointer-events-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
+                {isMagicExpandModeActive && (
+                    <div ref={magicExpandContainerRef} className="w-full h-full relative flex items-center justify-center overflow-hidden bg-checkerboard">
+                        {expandState && (
+                            <>
+                                <div
+                                    className="absolute border-2 border-dashed border-fuchsia-500/80 bg-black/30"
+                                    style={{
+                                        width: expandState.frame.width,
+                                        height: expandState.frame.height,
+                                        top: expandState.frame.top,
+                                        left: expandState.frame.left,
+                                    }}
+                                >
+                                    {['n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se'].map(handle => (
+                                        <div key={handle} data-handle={handle} className={`resize-handle resize-handle-${handle}`} onMouseDown={handleExpandInteraction} />
+                                    ))}
+                                </div>
+                                <img
+                                    ref={imageRef}
+                                    src={image1Preview!}
+                                    className="absolute cursor-move select-none"
+                                    style={{
+                                        width: expandState.image.width,
+                                        height: expandState.image.height,
+                                        top: expandState.image.top,
+                                        left: expandState.image.left,
+                                    }}
+                                    onMouseDown={handleImageDragStart}
+                                    draggable={false}
+                                />
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {mode !== Mode.Create && !isLoading && ((mode === Mode.Edit && !image1Preview) || (mode === Mode.Enhance && !enhanceImagePreview)) && !isGeneratingVariations && (
+                     <div className="text-center text-gray-500 flex flex-col items-center p-4">
+                        <Icon name="upload" className="w-16 h-16 mb-4"/>
+                        <h2 className="text-2xl font-bold text-gray-300">Carregue uma Imagem</h2>
+                        <p className="max-w-md mt-2">Use o painel à esquerda para carregar uma imagem e começar a {mode === Mode.Edit ? 'editar' : 'melhorar'}.</p>
+                    </div>
+                )}
+
+
             </main>
         </div>
     );
