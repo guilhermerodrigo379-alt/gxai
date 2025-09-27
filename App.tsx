@@ -4,7 +4,122 @@ import { HistoryItem, User } from './types';
 import { StudioPage } from './components/StudioPage';
 import { LoginPage } from './components/LoginPage';
 import { ProfilePage } from './components/ProfilePage';
+import { InspirationPage } from './components/InspirationPage';
 import { Icon } from './components/Icon';
+
+// --- START of IndexedDB Service Logic ---
+
+const DB_NAME = 'gx-verse-db';
+const DB_VERSION = 1;
+const STORE_NAME = 'history';
+const MAX_HISTORY_ITEMS = 50; // Increased capacity with IndexedDB
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+const openDB = (): Promise<IDBDatabase> => {
+  if (dbPromise) {
+    return dbPromise;
+  }
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = () => {
+      console.error('IndexedDB error:', request.error);
+      reject('Error opening IndexedDB.');
+    };
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onupgradeneeded = () => {
+      const tempDb = request.result;
+      if (!tempDb.objectStoreNames.contains(STORE_NAME)) {
+        const store = tempDb.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('userName', 'userName', { unique: false });
+      }
+    };
+  });
+  return dbPromise;
+};
+
+const saveHistoryItem = async (item: HistoryItem, userName: string): Promise<void> => {
+  const db = await openDB();
+  const transaction = db.transaction(STORE_NAME, 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+
+  // Add userName to the item before saving
+  const itemToStore = { ...item, userName };
+  store.put(itemToStore);
+  
+  // Enforce MAX_HISTORY_ITEMS limit by deleting the oldest items
+  const userIndex = store.index('userName');
+  const cursorRequest = userIndex.openCursor(IDBKeyRange.only(userName), 'prev'); // 'prev' sorts by key descending (newest first)
+  let count = 0;
+  
+  cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (cursor) {
+          count++;
+          if (count > MAX_HISTORY_ITEMS) {
+              cursor.delete();
+          }
+          cursor.continue();
+      }
+  };
+
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+const getHistoryForUser = async (userName: string): Promise<HistoryItem[]> => {
+  const db = await openDB();
+  const transaction = db.transaction(STORE_NAME, 'readonly');
+  const store = transaction.objectStore(STORE_NAME);
+  const index = store.index('userName');
+  const request = index.getAll(IDBKeyRange.only(userName));
+  
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      // Sort by id (timestamp) descending to get newest first
+      const sortedHistory = request.result.sort((a, b) => b.id - a.id);
+      resolve(sortedHistory as HistoryItem[]);
+    };
+    request.onerror = () => {
+      console.error('Error fetching history:', request.error);
+      reject('Could not fetch history from IndexedDB.');
+    };
+  });
+};
+
+const clearHistoryForUser = async (userName: string): Promise<void> => {
+  const db = await openDB();
+  const transaction = db.transaction(STORE_NAME, 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+  const index = store.index('userName');
+  const request = index.openCursor(IDBKeyRange.only(userName));
+
+  return new Promise<void>((resolve, reject) => {
+      request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+              cursor.delete();
+              cursor.continue();
+          }
+      };
+
+      transaction.oncomplete = () => {
+          resolve();
+      };
+      transaction.onerror = () => {
+          reject(transaction.error);
+      };
+  });
+};
+
+// --- END of IndexedDB Service Logic ---
 
 const useToasts = () => {
     const [toasts, setToasts] = useState<{id: number, message: string, type: 'success' | 'error'}[]>([]);
@@ -44,39 +159,6 @@ const Toast: React.FC<{ id: number; message: string; type: string; onDismiss: (i
     );
 };
 
-// Helper to create small thumbnails to avoid exceeding localStorage quota.
-const createThumbnail = (dataUrl: string, maxSize: number = 256): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return reject(new Error('Canvas context not available'));
-
-            let { width, height } = img;
-            if (width > height) {
-                if (width > maxSize) {
-                    height *= maxSize / width;
-                    width = maxSize;
-                }
-            } else {
-                if (height > maxSize) {
-                    width *= maxSize / height;
-                    height = maxSize;
-                }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(img, 0, 0, width, height);
-            // Use JPEG at 80% quality for a good balance of size and quality.
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-        img.onerror = (err) => reject(err);
-        img.src = dataUrl;
-    });
-};
-
 
 const App: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -88,7 +170,6 @@ const App: React.FC = () => {
 
     const USERS_KEY = 'gx-verse-ai-studio-users';
     const SESSION_KEY = 'gx-verse-ai-studio-session';
-    const MAX_HISTORY_ITEMS = 50;
     
     // Load users and session on initial mount
     useEffect(() => {
@@ -111,66 +192,58 @@ const App: React.FC = () => {
         }
     }, []);
 
-    // Load user-specific history when currentUser changes
+    // Load user-specific history from IndexedDB when currentUser changes
     useEffect(() => {
         if (currentUser) {
-            try {
-                const historyKey = `gx-verse-ai-studio-history-${currentUser.name}`;
-                const storedHistory = localStorage.getItem(historyKey);
-                setHistory(storedHistory ? JSON.parse(storedHistory) : []);
-            } catch (error) {
-                console.error("Failed to load history for user", error);
-                setHistory([]);
-            }
+            getHistoryForUser(currentUser.name)
+                .then(userHistory => {
+                    setHistory(userHistory);
+                })
+                .catch(error => {
+                    console.error("Failed to load history from IndexedDB", error);
+                    setToastError("Não foi possível carregar o histórico.");
+                    setHistory([]);
+                });
         } else {
             setHistory([]);
         }
-    }, [currentUser]);
-
-    // Save user-specific history when it changes
-    useEffect(() => {
-        if (currentUser) {
-            try {
-                const historyKey = `gx-verse-ai-studio-history-${currentUser.name}`;
-                localStorage.setItem(historyKey, JSON.stringify(history));
-            } catch (error) {
-                console.error("Failed to save history for user", error);
-                if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.message.includes('exceeded the quota'))) {
-                    setToastError("Não foi possível salvar o histórico. O armazenamento local está cheio.");
-                } else {
-                    setToastError("Ocorreu um erro ao salvar o histórico.");
-                }
-            }
-        }
-    }, [history, currentUser, setToastError]);
+    }, [currentUser, setToastError]);
 
 
     const addToHistory = useCallback(async (newItemData: Omit<HistoryItem, 'id'>) => {
+        if (!currentUser) return;
+
+        const newItem: HistoryItem = {
+            ...newItemData,
+            id: Date.now(),
+            imageUrl: newItemData.imageUrl,
+            beforeImageUrl: newItemData.beforeImageUrl,
+        };
+        
+        // Optimistic UI update
+        setHistory(prev => [newItem, ...prev].slice(0, MAX_HISTORY_ITEMS));
+
         try {
-            // Generate thumbnails to save space in localStorage
-            const thumbnailImageUrl = await createThumbnail(newItemData.imageUrl);
-            const thumbnailBeforeImageUrl = newItemData.beforeImageUrl
-                ? await createThumbnail(newItemData.beforeImageUrl)
-                : undefined;
-
-            const newItem: HistoryItem = {
-                ...newItemData,
-                id: Date.now(),
-                imageUrl: thumbnailImageUrl,
-                beforeImageUrl: thumbnailBeforeImageUrl,
-            };
-            
-            setHistory(prev => [newItem, ...prev].slice(0, MAX_HISTORY_ITEMS));
+            await saveHistoryItem(newItem, currentUser.name);
         } catch (error) {
-            console.error("Failed to create thumbnail for history:", error);
-            setToastError("Não foi possível salvar a imagem no histórico.");
+            console.error("Failed to save history to IndexedDB", error);
+            setToastError("Ocorreu um erro ao salvar o histórico.");
+            // NOTE: A full rollback of the optimistic update is complex and might be jarring.
+            // For now, we just inform the user of the save failure.
         }
-    }, [setToastError]);
+    }, [currentUser, setToastError]);
 
-    const handleClearHistory = () => {
-        setHistory([]);
-        setToastSuccess("Seu histórico foi limpo.");
-    };
+    const handleClearHistory = useCallback(async () => {
+        if (!currentUser) return;
+        try {
+            await clearHistoryForUser(currentUser.name);
+            setHistory([]);
+            setToastSuccess("Seu histórico foi limpo.");
+        } catch (error) {
+            console.error("Failed to clear history from IndexedDB", error);
+            setToastError("Não foi possível limpar o histórico.");
+        }
+    }, [currentUser, setToastError, setToastSuccess]);
 
     const handleLogin = async (name: string, password: string): Promise<string | null> => {
         const user = users.find(u => u.name.toLowerCase() === name.toLowerCase());
@@ -233,6 +306,10 @@ const App: React.FC = () => {
             <Routes>
                 {currentUser ? (
                     <>
+                        <Route
+                            path="/inspiration"
+                            element={<InspirationPage />}
+                        />
                         <Route
                             path="/profile"
                             element={

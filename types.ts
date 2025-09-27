@@ -45,6 +45,7 @@ export interface HistoryItem {
   enhanceFunction?: EnhanceFunction;
   aspectRatio?: string;
   negativePrompt?: string;
+  userName?: string;
 }
 
 export interface UserSettings {

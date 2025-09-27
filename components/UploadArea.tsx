@@ -90,8 +90,8 @@ export const UploadArea: React.FC<UploadAreaProps> = ({ id, onImageSelect, previ
         <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover rounded-lg" />
       ) : (
         <div className="text-center">
-          <Icon name="upload" className={`mx-auto mb-4 ${isFullScreen ? "w-16 h-16" : "w-8 h-8"} text-gray-500`}/>
-          <p className={`font-semibold ${isFullScreen ? "text-xl" : ""}`}>{title}</p>
+          <Icon name="upload" className={`mx-auto mb-4 ${isFullScreen ? "w-16 h-16" : (isDual ? "w-6 h-6" : "w-8 h-8")} text-gray-500`}/>
+          <p className={`font-semibold ${isFullScreen ? "text-xl" : (isDual ? "text-sm" : "")}`}>{title}</p>
           <p className={`mt-2 ${isFullScreen ? "text-base" : "text-xs"} text-gray-400`}>{isDual ? "Clique ou arraste" : "PNG, JPG, WebP (máx. 10MB)"}</p>
         </div>
       )}

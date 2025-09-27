@@ -22,25 +22,6 @@ interface StudioPageProps {
     setToastSuccess: (message: string) => void;
 }
 
-const inspirations = [
-    {
-        prompt: 'Uma nave espacial angular atravessando um campo de asteroides perto de um planeta com anéis, arte vetorial.',
-        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2E4NTVmNyIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMzYjA3NjQiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZhtPSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
-    },
-    {
-        prompt: 'Uma nebulosa cósmica em tons de rosa e roxo profundo, repleta de estrelas cintilantes.',
-        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Y0NzJiNiIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM2YjIxYTgiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
-    },
-    {
-        prompt: 'Um astronauta em pé na beira de um precipício, observando um buraco negro.',
-        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2Q4YjRmZSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM0YTA0NGUiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
-    },
-    {
-        prompt: 'Uma cidade alienígena com torres de cristal que brilham com luz roxa, sob um céu com duas luas.',
-        imageUrl: `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDMwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2MwODRmYyIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM1ODFjODciIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9InVybCgjZykiIC8+PC9zdmc+`
-    },
-];
-
 // --- START of Helper Components ---
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => (
     <details className="group border-b border-gray-700/50" open={defaultOpen}>
@@ -399,7 +380,6 @@ const createFunctions = [
   { id: CreateFunction.Video, name: "Vídeo", icon: "video", sublabel: "(beta)" },
   { id: CreateFunction.Seedream4k, name: "4K Style", icon: "4k" },
   { id: CreateFunction.Cinema, name: "Cinema", icon: "cinema" },
-  { id: CreateFunction.Scenario, name: "Cenário", icon: "scenario" },
   { id: CreateFunction.Portrait, name: "Retrato", icon: "portrait" },
   { id: CreateFunction.Anime, name: "Anime", icon: "anime" },
 ];
@@ -439,11 +419,6 @@ const createTooltips = {
     title: 'Cinema',
     description: 'Cria cenas com iluminação dramática, profundidade de campo e uma aparência cinematográfica.',
     example: 'Um detetive em uma rua chuvosa à noite, iluminado por um letreiro de neon.'
-  },
-  [CreateFunction.Scenario]: {
-    title: 'Cenário',
-    description: 'Ideal para criar paisagens e ambientes vastos, detalhados e com uma iluminação atmosférica.',
-    example: 'Uma cidade futurista flutuando nas nuvens ao pôr do sol.'
   },
   [CreateFunction.Portrait]: {
     title: 'Retrato',
@@ -775,6 +750,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         }
     }, [location.pathname]);
 
+    const isComposeMode = useMemo(() => mode === Mode.Edit && activeEditFunc === EditFunction.Compose, [mode, activeEditFunc]);
+
     const isMaskingModeActive = useMemo(() => {
         return mode === Mode.Edit && activeEditFunc === EditFunction.AddRemove && image1Preview && !generatedImage;
     }, [mode, activeEditFunc, image1Preview, generatedImage]);
@@ -809,14 +786,19 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         }
     }, [currentUser]);
 
-    // This effect handles loading a history item passed via navigation state
+    // This effect handles loading a history item or inspiration prompt passed via navigation state
     useEffect(() => {
-        if (location.state && location.state.loadHistoryItem) {
-            handleSidebarHistoryClick(location.state.loadHistoryItem);
+        if (location.state) {
+            if (location.state.loadHistoryItem) {
+                handleSidebarHistoryClick(location.state.loadHistoryItem);
+            } else if (location.state.loadInspirationPrompt) {
+                setPrompt(location.state.loadInspirationPrompt);
+                setToastSuccess("Prompt de inspiração carregado!");
+            }
             // Clear the state so it doesn't re-trigger on refresh
             navigate(location.pathname, { replace: true, state: {} });
         }
-    }, [location.state]);
+    }, [location.state, navigate, setToastSuccess]);
 
 
     const handleCloseWelcome = () => {
@@ -842,8 +824,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             console.error("Failed to save settings to localStorage", error);
         }
     }, [activeCreateFunc, aspectRatio, currentUser]);
-
-    const isComposeMode = useMemo(() => mode === Mode.Edit && activeEditFunc === EditFunction.Compose, [mode, activeEditFunc]);
 
     useEffect(() => {
         // This effect handles cleanup for single-image previews when they are replaced.
@@ -1951,38 +1931,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         } : null);
     };
 
-    const renderCreateFunctions = () => (
-        <CollapsibleSection title="Estilo de Criação" defaultOpen={true}>
-            <div className="grid grid-cols-4 gap-2">
-                {createFunctions.map((func) => (
-                    <Tooltip key={func.id} {...createTooltips[func.id]}>
-                        <FunctionCard icon={func.icon} name={func.name} sublabel={(func as any).sublabel} isActive={activeCreateFunc === func.id} onClick={() => setActiveCreateFunc(func.id)} />
-                    </Tooltip>
-                ))}
-            </div>
-            {activeCreateFunc !== CreateFunction.Video && (
-                <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Proporção</label>
-                    <div className="flex space-x-2">
-                         {aspectRatios.map(ratio => (
-                            <button key={ratio.id} onClick={() => setAspectRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${aspectRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
-                        ))}
-                    </div>
-                </div>
-            )}
-            {activeCreateFunc === CreateFunction.Video && (
-                 <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Nível de Movimento</label>
-                    <div className="flex space-x-2">
-                        <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
-                        <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
-                        <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
-                    </div>
-                </div>
-            )}
-        </CollapsibleSection>
-    );
-
     const renderEditFunctions = () => (
          <CollapsibleSection title="Função de Edição" defaultOpen={true}>
             <div className="grid grid-cols-3 gap-2">
@@ -2112,6 +2060,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     src={flyingImage.src}
                     alt="Animating image"
                     className="fixed z-[100] object-contain rounded-lg animate-fly-to-target"
+                    // Fix: Cast style object to React.CSSProperties to allow custom CSS properties.
                     style={{
                         top: `${flyingImage.top}px`,
                         left: `${flyingImage.left}px`,
@@ -2121,7 +2070,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                         '--target-left': `${flyingImage.targetLeft}px`,
                         '--target-width': `${flyingImage.targetWidth}px`,
                         '--target-height': `${flyingImage.targetHeight}px`,
-                    }}
+                    } as React.CSSProperties}
                 />
             )}
             {isDraggingOverApp && <DropOverlay />}
@@ -2166,10 +2115,6 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 </div>
                 
                 <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-4">
-                    {mode === Mode.Create && renderCreateFunctions()}
-                    {mode === Mode.Edit && renderEditFunctions()}
-                    {mode === Mode.Enhance && renderEnhanceFunctions()}
-
                     <CollapsibleSection title="Entrada de Texto" defaultOpen={true}>
                          <div className="space-y-4">
                             <div className="relative">
@@ -2183,19 +2128,29 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                     }
                                     className="w-full h-28 bg-gray-900/70 border border-gray-700/80 rounded-lg p-3 text-md placeholder-gray-500 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500 transition-colors resize-none"
                                 />
-                                <button
-                                    onClick={handleEnhancePrompt}
-                                    disabled={isEnhancingPrompt}
-                                    title="Melhorar prompt com IA"
-                                    className="absolute bottom-2 right-2 flex items-center space-x-1.5 bg-gray-800/80 text-fuchsia-300 hover:bg-gray-700/80 text-xs font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50"
-                                >
-                                    {isEnhancingPrompt ? (
-                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    ) : (
+                                <div className="absolute bottom-2 right-2 flex items-center space-x-1">
+                                    <button
+                                        onClick={handleEnhancePrompt}
+                                        disabled={isEnhancingPrompt}
+                                        title="Melhorar prompt com IA"
+                                        className="flex items-center space-x-1.5 bg-gray-800/80 text-fuchsia-300 hover:bg-gray-700/80 text-xs font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50"
+                                    >
+                                        {isEnhancingPrompt ? (
+                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        ) : (
+                                            <Icon name="sparkles" className="w-4 h-4" />
+                                        )}
+                                        <span>Melhorar</span>
+                                    </button>
+                                     <button
+                                        onClick={() => navigate('/inspiration')}
+                                        title="Buscar inspiração"
+                                        className="flex items-center space-x-1.5 bg-gray-800/80 text-yellow-300 hover:bg-gray-700/80 text-xs font-semibold py-1 px-2 rounded-md transition-colors"
+                                    >
                                         <Icon name="sparkles" className="w-4 h-4" />
-                                    )}
-                                    <span>Melhorar</span>
-                                </button>
+                                        <span>Inspire-se</span>
+                                    </button>
+                                </div>
                             </div>
 
                             {mode === Mode.Create && (
@@ -2236,7 +2191,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                 </CollapsibleSection>
                             )
                             : (
-                                 <CollapsibleSection title="Estilo de Referência (Opcional)" defaultOpen={false}>
+                                 <CollapsibleSection title="Imagens de Referência (Opcional)" defaultOpen={false}>
                                     {renderReferenceImages()}
                                  </CollapsibleSection>
                             )
@@ -2279,7 +2234,45 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                         </CollapsibleSection>
                     )}
 
-                    {renderAdjustmentsPanel()}
+                    {mode === Mode.Create && (
+                        <CollapsibleSection title="Estilo de Criação" defaultOpen={true}>
+                            <div className="grid grid-cols-4 gap-2">
+                                {createFunctions.map((func) => (
+                                    <Tooltip key={func.id} {...createTooltips[func.id]}>
+                                        <FunctionCard icon={func.icon} name={func.name} sublabel={(func as any).sublabel} isActive={activeCreateFunc === func.id} onClick={() => setActiveCreateFunc(func.id)} />
+                                    </Tooltip>
+                                ))}
+                            </div>
+                        </CollapsibleSection>
+                    )}
+                    {mode === Mode.Edit && renderEditFunctions()}
+                    {mode === Mode.Enhance && renderEnhanceFunctions()}
+
+                    {mode === Mode.Create && (
+                        <CollapsibleSection title="Configurações da Imagem" defaultOpen={true}>
+                            {activeCreateFunc !== CreateFunction.Video ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Proporção</label>
+                                    <div className="flex space-x-2">
+                                        {aspectRatios.map(ratio => (
+                                            <button key={ratio.id} onClick={() => setAspectRatio(ratio.id)} className={`flex-1 p-2 rounded-md text-sm transition-colors ${aspectRatio === ratio.id ? 'bg-fuchsia-500 text-white font-semibold animate-subtle-pulse' : 'bg-gray-800 hover:bg-gray-700'}`}>{ratio.name}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Nível de Movimento</label>
+                                    <div className="flex space-x-2">
+                                        <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
+                                        <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
+                                        <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
+                                    </div>
+                                </div>
+                            )}
+                        </CollapsibleSection>
+                    )}
+
+                    {mode !== Mode.Create && renderAdjustmentsPanel()}
 
                     <HistoryPanel history={history} onHistoryClick={handleSidebarHistoryClick} onClearHistory={onClearHistory} />
                 </div>
@@ -2466,19 +2459,17 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 )}
                 
                 {!generatedImage && !isLoading && !isGeneratingVariations && mode === Mode.Create && (
-                    <div className="text-center text-gray-500 flex flex-col items-center p-4">
-                        <Icon name="sparkles" className="w-16 h-16 mb-4"/>
-                        <h2 className="text-2xl font-bold text-gray-300">Comece a Criar</h2>
-                        <p className="max-w-md mt-2">Use o painel à esquerda para descrever sua visão, ajustar estilos e dar vida às suas ideias.</p>
-                        <div className="grid grid-cols-2 gap-4 mt-8 w-full max-w-xl">
-                            {inspirations.map((item, index) => (
-                                <div key={index} onClick={() => setPrompt(item.prompt)} className="group relative rounded-lg overflow-hidden cursor-pointer h-24 bg-cover bg-center" style={{backgroundImage: `url('${item.imageUrl}')`}}>
-                                    <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-all duration-300 flex items-end p-2">
-                                        <p className="text-white text-xs font-semibold line-clamp-2">{item.prompt}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="text-center text-gray-500 flex flex-col items-center p-4 animate-fade-in">
+                        <Icon name="sparkles" className="w-16 h-16 mb-4 text-fuchsia-400/50"/>
+                        <h2 className="text-2xl font-bold text-gray-300">Seu Universo Criativo Aguarda</h2>
+                        <p className="max-w-md mt-2">Use o painel para descrever sua visão ou explore a galeria para encontrar inspiração.</p>
+                        <button
+                            onClick={() => navigate('/inspiration')}
+                            className="mt-8 bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors transform active:scale-95 text-base flex items-center space-x-2"
+                        >
+                            <Icon name="image" className="w-5 h-5" />
+                            <span>Ver Galeria de Inspiração</span>
+                        </button>
                     </div>
                 )}
 

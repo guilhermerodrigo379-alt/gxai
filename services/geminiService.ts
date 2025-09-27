@@ -77,8 +77,6 @@ const getStylePrompt = (prompt: string, createFunction: string): string => {
       return `Masterpiece, best quality, cinematic film still of ${prompt}. Shot on 70mm film, capturing hyper-detailed textures and lifelike features. Professional color grading, dramatic, award-winning photography, 4K UHD, ultra-realistic, sharp focus, volumetric lighting, epic composition.`;
     case 'cinema':
       return `Cinematic film still of ${prompt}, dramatic cinematic lighting, shallow depth of field, 35mm film grain, anamorphic lens flare, professionally color graded, ultra realistic.`;
-    case 'scenario':
-      return `Breathtaking fantasy landscape concept art of ${prompt}. A beautiful scenic digital painting, epic scale, highly detailed environment, atmospheric lighting.`;
     case 'portrait':
       return `Professional studio portrait photograph of ${prompt}, hyper-realistic, sharp focus, detailed skin texture, expressive, neutral background, dramatic lighting.`;
     case 'anime':
