@@ -649,6 +649,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     const [activeEnhanceFunc, setActiveEnhanceFunc] = useState<EnhanceFunction>(EnhanceFunction.Upscale);
     const [aspectRatio, setAspectRatio] = useState<string>('1:1');
     const [videoMotionLevel, setVideoMotionLevel] = useState<'subtle' | 'moderate' | 'dynamic'>('moderate');
+    const [videoDuration, setVideoDuration] = useState<number>(4);
     
     // State for create mode with multiple reference images
     const [referenceImageFiles, setReferenceImageFiles] = useState<ReferenceImageState[]>([]);
@@ -1125,7 +1126,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 if (etr) setProgressEtr(etr);
             };
 
-            const blobUrl = await generateVideoWithGemini(prompt, onProgressUpdate, videoReferenceImage ?? undefined, motionLevel);
+            const blobUrl = await generateVideoWithGemini(prompt, onProgressUpdate, videoReferenceImage ?? undefined, motionLevel, videoDuration);
             
             clearInterval(messageInterval);
 
@@ -2260,12 +2261,25 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                                     </div>
                                 </div>
                             ) : (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Nível de Movimento</label>
-                                    <div className="flex space-x-2">
-                                        <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
-                                        <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
-                                        <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">Nível de Movimento</label>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => setVideoMotionLevel('subtle')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'subtle' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Sutil</button>
+                                            <button onClick={() => setVideoMotionLevel('moderate')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'moderate' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Moderado</button>
+                                            <button onClick={() => setVideoMotionLevel('dynamic')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${videoMotionLevel === 'dynamic' ? 'bg-fuchsia-500 text-white font-semibold' : 'bg-gray-800 hover:bg-gray-700'}`}>Dinâmico</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <EffectSlider
+                                            label="Duração do Vídeo"
+                                            value={videoDuration}
+                                            min={2}
+                                            max={10}
+                                            step={1}
+                                            unit="s"
+                                            onChange={setVideoDuration}
+                                        />
                                     </div>
                                 </div>
                             )}

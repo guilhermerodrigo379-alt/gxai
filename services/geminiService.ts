@@ -184,7 +184,8 @@ export const generateVideoWithGemini = async (
   prompt: string,
   onProgress: (progress: number, message: string, etr?: string) => void,
   referenceImage?: ImageFile,
-  motionLevel: 'subtle' | 'moderate' | 'dynamic' = 'moderate'
+  motionLevel: 'subtle' | 'moderate' | 'dynamic' = 'moderate',
+  durationSeconds: number = 4
 ): Promise<string> => {
   const MAX_RETRIES = 3;
   let attempt = 0;
@@ -194,28 +195,30 @@ export const generateVideoWithGemini = async (
       onProgress(1, "Enviando solicitação de vídeo...");
 
       let finalPrompt: string;
+      const durationText = `The video must be exactly ${durationSeconds} seconds long.`;
+
       if (referenceImage) {
         switch (motionLevel) {
           case 'subtle':
-            finalPrompt = `**Instrução Absoluta: Animação Sutil e Fiel.** Sua única missão é animar sutilmente a imagem de referência, como um 'cinemagraph'. O resultado deve parecer a imagem estática ganhando vida com movimentos mínimos e naturais (ex: cabelo ao vento, vapor subindo, piscar de olhos). **NÃO introduza movimentos de câmera.** Preserve 100% do estilo, composição, cores e iluminação. O prompt do usuário define apenas a *natureza* do movimento sutil. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Instrução Absoluta: Animação Sutil e Fiel.** Sua única missão é animar sutilmente a imagem de referência, como um 'cinemagraph'. O resultado deve parecer a imagem estática ganhando vida com movimentos mínimos e naturais (ex: cabelo ao vento, vapor subindo, piscar de olhos). **NÃO introduza movimentos de câmera.** Preserve 100% do estilo, composição, cores e iluminação. O prompt do usuário define apenas a *natureza* do movimento sutil. ${durationText} Prompt do Usuário: "${prompt}"`;
             break;
           case 'moderate':
-            finalPrompt = `**Instrução: Animação Cinematográfica Moderada.** Sua missão é criar um vídeo que se baseia na imagem de referência. Anime a cena com movimentos naturais. Preserve o estilo artístico, os personagens e o ambiente da imagem, mas introduza um movimento de câmera suave (como um leve travelling, pan ou tilt) para dar mais vida à cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Instrução: Animação Cinematográfica Moderada.** Sua missão é criar um vídeo que se baseia na imagem de referência. Anime a cena com movimentos naturais. Preserve o estilo artístico, os personagens e o ambiente da imagem, mas introduza um movimento de câmera suave (como um leve travelling, pan ou tilt) para dar mais vida à cena. ${durationText} O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
             break;
           case 'dynamic':
-            finalPrompt = `**Instrução: Vídeo Dinâmico Baseado em Referência.** Use a imagem de referência como ponto de partida. Crie um vídeo dinâmico e cinematográfico. O estilo e os elementos principais devem ser inspirados na imagem, mas você tem liberdade para introduzir movimentos de câmera significativos (zoom, travelling rápido, câmera na mão), animações energéticas e até expandir a cena. O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Instrução: Vídeo Dinâmico Baseado em Referência.** Use a imagem de referência como ponto de partida. Crie um vídeo dinâmico e cinematográfico. O estilo e os elementos principais devem ser inspirados na imagem, mas você tem liberdade para introduzir movimentos de câmera significativos (zoom, travelling rápido, câmera na mão), animações energéticas e até expandir a cena. ${durationText} O prompt do usuário define a ação principal. Prompt do Usuário: "${prompt}"`;
             break;
         }
       } else {
         switch (motionLevel) {
           case 'subtle':
-            finalPrompt = `**Estilo: Cinemagraph/Sutil.** Gere um vídeo de altíssima qualidade focado em movimentos mínimos, delicados e atmosféricos. Ideal para retratos em movimento ou paisagens tranquilas. A composição deve ser majoritariamente estática, com movimentos de câmera quase imperceptíveis, se houver. Renderize em 4K, com iluminação natural. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Estilo: Cinemagraph/Sutil.** Gere um vídeo de altíssima qualidade focado em movimentos mínimos, delicados e atmosféricos. Ideal para retratos em movimento ou paisagens tranquilas. A composição deve ser majoritariamente estática, com movimentos de câmera quase imperceptíveis, se houver. Renderize em 4K, com iluminação natural. ${durationText} Prompt do Usuário: "${prompt}"`;
             break;
           case 'moderate':
-            finalPrompt = `**Estilo: Cinematográfico Padrão.** Gere um vídeo de alta qualidade com movimentos de câmera padrão (pan, tilt, travelling suave) e ação moderada. Foque em movimento suave, texturas realistas e iluminação dramática. Qualidade de produção, 4K. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Estilo: Cinematográfico Padrão.** Gere um vídeo de alta qualidade com movimentos de câmera padrão (pan, tilt, travelling suave) e ação moderada. Foque em movimento suave, texturas realistas e iluminação dramática. Qualidade de produção, 4K. ${durationText} Prompt do Usuário: "${prompt}"`;
             break;
           case 'dynamic':
-            finalPrompt = `**Estilo: Ação/Dinâmico.** Gere uma cena cinematográfica de alta energia. Use movimentos de câmera dinâmicos (câmera na mão, travelling rápido, cortes, ângulos dramáticos) para criar um ritmo rápido. A iluminação deve ser intensa e o movimento, enérgico. Qualidade de filme de ação, 4K. Prompt do Usuário: "${prompt}"`;
+            finalPrompt = `**Estilo: Ação/Dinâmico.** Gere uma cena cinematográfica de alta energia. Use movimentos de câmera dinâmicos (câmera na mão, travelling rápido, cortes, ângulos dramáticos) para criar um ritmo rápido. A iluminação deve ser intensa e o movimento, enérgico. Qualidade de filme de ação, 4K. ${durationText} Prompt do Usuário: "${prompt}"`;
             break;
         }
       }
@@ -225,6 +228,7 @@ export const generateVideoWithGemini = async (
         prompt: finalPrompt,
         config: {
           numberOfVideos: 1,
+          durationSecs: durationSeconds,
         },
       };
 
